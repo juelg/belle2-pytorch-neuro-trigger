@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 import os
 import logging
+import gzip
 
 import hashlib
 def md5(fname):
@@ -28,8 +29,8 @@ class BelleII(Dataset):
 
     def __init__(self, path, logger, in_ram=True) -> None:
         super().__init__()
-        with open(path) as f:
-            self.l = sum(1 for _ in f)
+        # with gzip.open(path) as f:
+        #     self.l = sum(1 for _ in f)
         self.path = path
         self.in_ram = in_ram
         self._cache_file = f"{md5(self.path)}.pt"
@@ -44,7 +45,7 @@ class BelleII(Dataset):
                 self.logger.debug(f"{self.path} not cached yet, start caching, this might take a while")
                 t1 = time.time()
                 with Pool(10) as p:
-                    with open(self.path) as f:
+                    with gzip.open(self.path) as f:
                         splitted = p.map(self.line2data, f.readlines())
                 t2 = time.time()
                 self.logger.debug("Time for caching: %f.1", t2-t1)
@@ -79,6 +80,8 @@ class BelleII(Dataset):
 
     @staticmethod
     def line2data(line):
+        if isinstance(line, bytes):
+            line = line.decode('utf-8')
         splitted = line.split("\t")
         x = [float(i) for i in splitted[8:35]]
         y = [float(i) for i in splitted[35:37]]
@@ -88,7 +91,7 @@ class BelleII(Dataset):
 
 
     def __len__(self):
-        return self.l
+        return len(self.data["x"])
 
     def __getitem__(self, idx):
         if self.in_ram:
@@ -113,7 +116,7 @@ class BelleIIExpert(BelleII):
         assert (self.data["expert"] == self.expert).all()
 
         # set the length correct
-        self.l = len(self.data["x"])
+        # self.l = len(self.data["x"])
         self.logger.debug(f"Dataset {self.path} expert #{self.expert} done init")
 
 

@@ -20,16 +20,23 @@ base_log = "log"
 gpu_idx = 0
 experts = [-1] #[0, 1, 2, 3, 4]
 
-train = "/home/tobi/neurotrigger/train1"
-val = "/home/tobi/neurotrigger/valid1"
-test = "/home/tobi/neurotrigger/test1"
+# train = "/home/tobi/neurotrigger/train1"
+# val = "/home/tobi/neurotrigger/valid1"
+# test = "/home/tobi/neurotrigger/test1"
+
+train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/random1.gz"
+val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/random2.gz"
+test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/random3.gz"
+
 
 data = (train, val, test)
 hparams = configs[config]
+hparams["config"] = config
 
 
 # check the latest version
-version = max(Path(config).glob("version_*"), key=lambda x: int(x.split("_")[1]), default=0)
+version = max([int(str(i).split("_")[-1]) for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
+print(version)
 
 log_folder = os.path.join(base_log, config, f"version_{version}")
 # todo maybe create folder
@@ -114,7 +121,7 @@ if __name__ == "__main__":
             deterministic=True,
             #profiler=True,
             #fast_dev_run=True,
-            gpus=[gpu_idx], #[0, 1],
+            # gpus=[gpu_idx], #[0, 1],
             default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
             #auto_select_gpus=True,
             #enable_pl_optimizer=True,
@@ -133,5 +140,7 @@ if __name__ == "__main__":
 
 
 
-    # with Pool(10, intializer=set_stdout) as p:
+    fit(trainer_module=trainers_modules[0])
+    # TODO lookup how pool can allow child processes
+    # with Pool(len(experts)) as p:
     #     p.map(fit, trainers_modules)
