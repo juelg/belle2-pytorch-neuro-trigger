@@ -12,10 +12,11 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader, random_split
 from torchvision.transforms import transforms
 from functools import partial
-from dataset import BelleII
+from dataset import BelleII, BelleIIExpert
 from model import SimpleModel
 import numpy as np
 from visualize import Visualize
+import logging
 
 DEBUG = False
 MULTI_GPU = False
@@ -23,20 +24,24 @@ MULTI_GPU = False
 
 
 
+class NeuroTrigger(pl.LightningModule):
 
-class AutoModule(pl.LightningModule):
-
-    def __init__(self, hparams: Dict, data):
+    def __init__(self, hparams: Dict, data, expert=-1):
         super().__init__()
         self.hparams.update(hparams)
         self.model = SimpleModel(hparams["in_size"], hparams["out_size"])
+        self.expert = expert
+        self.file_logger = logging.getLogger(f"expert_{expert}")
 
-        self.data = [BelleII(data[i]) for i in range(3)]
+        if self.expert == -1:
+            self.data = [BelleII(data[i], logger=self.file_logger) for i in range(3)]
+        else:
+            self.data = [BelleIIExpert(data[i], logger=self.file_logger, expert=self.expert) for i in range(3)]
 
         self.crit = torch.nn.MSELoss()
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
-        print("DONE init")
+        self.file_logger.debug("DONE init")
 
 
     def forward(self, x):

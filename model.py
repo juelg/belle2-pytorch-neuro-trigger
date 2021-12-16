@@ -1,14 +1,20 @@
-import torch
 from torch import nn
-from torch.nn.modules.activation import Tanh
-import torchvision
-from itertools import chain
-import numpy as np
-from torch.autograd import Variable
 
 def pad(f):
     return int((f - 1) / 2)
 
+class BaselineModel(nn.Module):
+    def __init__(self, inp=27, out=2):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(inp, 81),
+            nn.Tanh(),
+            nn.Linear(81, out),
+            nn.Tanh(),
+        )
+
+    def forward(self, x):
+        return self.net(x)
 
 class SimpleModel(nn.Module):
     def __init__(self, inp=27, out=2, act=nn.ReLU):
