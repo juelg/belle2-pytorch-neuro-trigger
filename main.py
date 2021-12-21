@@ -49,9 +49,12 @@ if not Path(log_folder).exists():
 logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        filename=os.path.join(log_folder, 'main.log'),
-        filemode='w'
+        # filename=os.path.join(log_folder, 'main.log'),
+        # filemode='w'
 )
+
+# mute matplotlib fonts
+logging.getLogger('matplotlib.font_manager').disabled = True
 
 # create file logger
 for expert in experts:
@@ -130,12 +133,9 @@ if __name__ == "__main__":
 
     def fit(trainer_module):
         # normal call: trainer.fit(pl_module)
-        # expert = trainer_module[1].expert
-        # logger = logging.getLogger(f'expert_{expert}')
-        # fh = logging.FileHandler(os.path.join(log_folder, f"expert_{expert}"))
-        # logger.addHandler(fh)
-        sys.stdout = StreamToLogger(logger,logging.INFO)
-        sys.stderr = StreamToLogger(logger,logging.ERROR)
+
+        # sys.stdout = StreamToLogger(logger,logging.INFO)
+        # sys.stderr = StreamToLogger(logger,logging.ERROR)
         trainer_module[0].fit(trainer_module[1])
 
 

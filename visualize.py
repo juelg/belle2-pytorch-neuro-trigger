@@ -1,3 +1,4 @@
+from typing import Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data.dataset import Subset
@@ -15,9 +16,10 @@ class Visualize:
     def __init__(self, module, data) -> None:
         self.module = module
         self.data = Subset(data, np.arange(len(data))[:40000])
+        self._y = None
 
 
-    def forward(self):
+    def forward(self) -> Tuple[torch.Tensor, torch.Tensor]:
         y_ = []
         y = []
 
@@ -29,6 +31,16 @@ class Visualize:
         y = torch.cat(y)
         y_ = torch.cat(y_)
         return y, y_
+
+    @property
+    def y(self):
+        if self._y is None:
+            self.y = self.forward()
+        return self._y
+
+    @y.setter
+    def y(self, y: Tuple[torch.Tensor, torch.Tensor]):
+        self._y = y
 
 
     def buf2tensor(self, buf):
@@ -50,7 +62,8 @@ class Visualize:
 
 
     def create_plot(self):
-        y, y_ = self.forward()
+        # y, y_ = self.forward() #self.y
+        y, y_ = self.y
         # def s(x, y, intensity=True, x_lim=None, y_lim=None, xlabel=None, ylabel=None, title=None, nbuckets=500):
 
         # scatter histogram
@@ -73,5 +86,7 @@ class Visualize:
         # do something with fig
         img = self.fig2buf2tensor(fig)
         self.module.logger.experiment.add_image("z-plot", img, self.module.current_epoch)
+
+    # TODO: create histogram plot of z
 
 

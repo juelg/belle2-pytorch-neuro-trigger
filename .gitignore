@@ -6,3 +6,4 @@ lightning_logs
 venv
 questions.md
 notes.md
+*.code-workspace

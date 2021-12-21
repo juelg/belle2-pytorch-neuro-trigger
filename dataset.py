@@ -83,9 +83,10 @@ class BelleII(Dataset):
         if isinstance(line, bytes):
             line = line.decode('utf-8')
         splitted = line.split("\t")
-        x = [float(i) for i in splitted[8:35]]
+        x = [float(i) for i in splitted[9:35]]
+        # TODO this is still wrong!!!
         y = [float(i) for i in splitted[35:37]]
-        expert = float(splitted[5])
+        expert = float(splitted[6])
         # meta = [float(i) for i in splitted[0:5]]
         return x, y , expert #, meta
 

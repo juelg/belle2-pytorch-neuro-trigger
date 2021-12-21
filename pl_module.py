@@ -54,6 +54,7 @@ class NeuroTrigger(pl.LightningModule):
         #if self.hparams.get("noise") is not None:
         #    bs = x.shape[0]
         #    y = y+torch.normal(0, 1*0.005, size=(bs,), device=self.device)
+        # TODO set more weight on z for learning and the loss function
         loss = self.crit(y_hat, y)
         self.log("loss", loss)
         return loss
@@ -63,7 +64,10 @@ class NeuroTrigger(pl.LightningModule):
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
         self.log("val_loss", loss)
-        # todo return dict, which is output -> vis does not need a forward pass
+        # TODO: compare loss to other networks output
+        # find out samples with very high loss
+        # compute and display loss of the other networks output
+        return y, y_hat
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -73,6 +77,7 @@ class NeuroTrigger(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # todo, use outputs
+        self.visualize.y = (torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
         self.visualize.create_plot()
 
 
