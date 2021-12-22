@@ -53,8 +53,12 @@ logging.basicConfig(
         # filemode='w'
 )
 
-# mute matplotlib fonts
+# mute other libs debugging output
 logging.getLogger('matplotlib.font_manager').disabled = True
+logging.getLogger('matplotlib.ticker').disabled = True
+logging.getLogger('matplotlib.colorbar').disabled = True
+logging.getLogger('PIL.PngImagePlugin').disabled = True
+logging.getLogger('h5py._conv').disabled = True
 
 # create file logger
 for expert in experts:

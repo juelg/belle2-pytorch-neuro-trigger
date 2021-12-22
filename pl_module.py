@@ -82,9 +82,11 @@ class NeuroTrigger(pl.LightningModule):
 
     def validation_epoch_end(self, outputs):
         # todo, use outputs
-        self.visualize.y = (torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
-        self.visualize.z_plot()
-        self.visualize.hist_plot()
+
+        self.visualize.create_plots(torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
+        # self.visualize.y = (torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
+        # self.visualize.z_plot()
+        # self.visualize.hist_plot()
 
 
     def train_dataloader(self):
