@@ -9,8 +9,6 @@ from torchvision.transforms import ToTensor
 import PIL
 import torch
 
-# predict # amount of val -> plot z (first coord) agains z true
-
 
 class Visualize:
     def __init__(self, module, data) -> None:
@@ -40,7 +38,7 @@ class Visualize:
 
     @y.setter
     def y(self, y: Tuple[torch.Tensor, torch.Tensor]):
-        self._y = y
+        self._y = (y[0].cpu(), y[1].cpu())
 
 
     def buf2tensor(self, buf):
@@ -61,32 +59,38 @@ class Visualize:
         return self.buf2tensor(buf)
 
 
-    def create_plot(self):
-        # y, y_ = self.forward() #self.y
-        y, y_ = self.y
-        # def s(x, y, intensity=True, x_lim=None, y_lim=None, xlabel=None, ylabel=None, title=None, nbuckets=500):
+    def create_plots(self, batch, y_hat):
+        batch = batch.cpu()
+        # TODO: call all plot functions, in the first time call them also with old y_hat data to have baseline plots -> do this in init
+        # TODO: create ground truth hist once in the beginning
+
+
+    def z_plot(self):
+        y, y_hat = self.y
 
         # scatter histogram
-        fig, ax = plt.subplots(dpi=300)
-        h = ax.hist2d(y[:,0].numpy(),y_[:,0].numpy(), 200, norm=LogNorm(),cmap='jet')
+        fig, ax = plt.subplots(dpi=200)
+        h = ax.hist2d(y[:,0].numpy(),y_hat[:,0].numpy(), 200, norm=LogNorm(),cmap='jet')
         
         cbar = fig.colorbar(h[3], ax=ax)
         cbar.set_label(r'$\log_{10}$ density of points')
 
-        ax.set(xlabel="nnhw Track z[cm]", ylabel="reco Track z[cm]", title="z0 reco vs z0 nnhw")
+        ax.set(xlabel="reco Track z", ylabel="nnhw Track z", title="z0 reco vs z0 nnhw")
         ax.axis('square')
         ax.set_aspect('equal', adjustable='box')
+        ax.set_xlim([-1, 1])
+        ax.set_ylim([-1, 1])
 
-        # if x_lim:
-        #     ax.set_xlim(x_lim)
-        # if y_lim:
-        #     ax.set_ylim(y_lim)
-        # plt.show()
-
-        # do something with fig
         img = self.fig2buf2tensor(fig)
         self.module.logger.experiment.add_image("z-plot", img, self.module.current_epoch)
 
-    # TODO: create histogram plot of z
+    def hist_plot(self):
+        y, y_hat = self.y
+        fig, ax = plt.subplots(dpi=200)
+        ax.hist(y_hat[:, 0].numpy(), bins=100)
+        ax.set(xlabel="Neuro Z")
+        img = self.fig2buf2tensor(fig)
+        self.module.logger.experiment.add_image("z-hist", img, self.module.current_epoch)
+
 
 

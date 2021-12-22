@@ -36,5 +36,7 @@ class SimpleModel(nn.Module):
         )
 
     def forward(self, x):
+        # get models dtype for conversion:
+        # next(self.parameters()).dtype
         return self.net(x)
 

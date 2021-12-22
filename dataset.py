@@ -12,6 +12,7 @@ from pathlib import Path
 import os
 import logging
 import gzip
+import numpy as np
 
 import hashlib
 def md5(fname):
@@ -121,11 +122,46 @@ class BelleIIExpert(BelleII):
         self.logger.debug(f"Dataset {self.path} expert #{self.expert} done init")
 
 
+class BelleIIBetter(Dataset):
+
+    def __init__(self, path, logger) -> None:
+        super().__init__()
+        self.path = path
+        self.logger = logger
+        with gzip.open(path, "rt") as f:
+            dt = np.loadtxt(path, skiprows=2)
+        self.data = {
+            "x": torch.Tensor(dt[:, 9:36]),
+            "y": torch.Tensor(dt[:, 36:38]),
+            "expert": torch.Tensor(dt[:, 6]),
+            "y_hat_old": torch.Tensor(dt[:, -4:-1:2]),
+        }
+
+
+    def __len__(self):
+        return len(self.data["x"])
+
+    def __getitem__(self, idx):
+        return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx]
+
+class BelleIIBetterExpert(BelleIIBetter):
+    def __init__(self, path, expert, logger) -> None:
+        super().__init__(path, logger)
+        self.expert = expert
+        # filter out all samples that do not belong to this expert
+        # create index map
+        keep = [idx for idx, i in enumerate(self.data["expert"]) if i==self.expert]
+        # overwrite in order to get back memory from unused data
+        self.data = {key: val[keep] for key, val in self.data.items()}
+        # senity check
+        assert (self.data["expert"] == self.expert).all()
+
+        self.logger.debug(f"Dataset {self.path} expert #{self.expert} done init")
 
 
 if __name__ == "__main__":
-    b = BelleII("/home/tobi/neurotrigger/train1")
-    for i in b[:10]:
+    b = BelleIIBetter("/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz", logging.getLogger("test"))
+    for i in b[:1]:
         print(i)
 
 
