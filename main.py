@@ -93,27 +93,37 @@ for expert in experts:
 
 logger.info(f"Using config {config} in version {version}")
 
+def snap_source_state(log_folder):
+    # get git commit id
+    os.system(f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
+    # get git diff
+    os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
+
+
 
 if __name__ == "__main__":
 
-    early_stop_callback = EarlyStopping(
-        monitor='val_loss',
-        patience=10,
-        strict=True,
-        verbose=True,
-        mode='min'
-    )
-    model_checkpoint = ModelCheckpoint(
-                monitor='val_loss',
-                save_last=True,
-                save_top_k=1,
-    )
-    # callbacks = [early_stop_callback, model_checkpoint]
-    callbacks = [model_checkpoint]
 
+    # save git commit and git diff in file
+    snap_source_state(log_folder)
 
     trainers_modules = []
     for expert in experts:
+        early_stop_callback = EarlyStopping(
+            monitor='val_loss',
+            patience=10,
+            strict=True,
+            verbose=True,
+            mode='min'
+        )
+        model_checkpoint = ModelCheckpoint(
+                    monitor='val_loss',
+                    save_last=True,
+                    save_top_k=1,
+        )
+        # callbacks = [early_stop_callback, model_checkpoint]
+        callbacks = [model_checkpoint]
+
         pl_module = NeuroTrigger(hparams, data, expert=expert)
         trainer = pl.Trainer(
             #row_log_interval=1,
