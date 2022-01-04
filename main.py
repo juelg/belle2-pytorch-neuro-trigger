@@ -1,22 +1,11 @@
-# from multiprocessing import Pool
-from multiprocessing.pool import ThreadPool
 import threading
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, base
-from dataset import BelleIIExpert
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pl_module import NeuroTrigger
 import os
-from torchvision.transforms import transforms
-import numpy as np
-from torchvision.transforms.functional import crop
-import torch
 from configs import configs
 from pathlib import Path
 import logging
-import sys
-import utils
-from joblib import Parallel, delayed
-from concurrent.futures import ProcessPoolExecutor as Pool
 
 
 
@@ -59,7 +48,6 @@ if not Path(log_folder).exists():
 
 
 
-# logging.basicConfig(filename='myapp.log', level=logging.DEBUG)
 logging.basicConfig(
         level=logging.DEBUG,
         format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
@@ -91,7 +79,6 @@ class ThreadLogFilter(logging.Filter):
 # create file loggers
 logger = logging.getLogger()
 for expert in experts:
-    # logger = logging.getLogger(f'expert_{expert}')
     fh = logging.FileHandler(os.path.join(log_folder, f"expert_{expert}.log"), mode="w")
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
@@ -141,70 +128,13 @@ if __name__ == "__main__":
         trainers_modules.append((trainer, pl_module))
 
     def fit(trainer_module):
-        # normal call: trainer.fit(pl_module)
-
-        # trainer_module[1].setup_logger()
-
         trainer_module[0].fit(trainer_module[1])
 
-
-
     if len(experts) == 1:
-        # sys.stdout = utils.StreamToLogger2(logging.getLogger(experts_str[0]), logging.INFO)
-        # sys.stderr = utils.StreamToLogger2(logging.getLogger(experts_str[0]), logging.ERROR)
         fit(trainer_module=trainers_modules[0])
     else:
-        # TODO lookup how pool can allow child processes
-        # https://stackoverflow.com/questions/6974695/python-process-pool-non-daemonic
-
-        # import multiprocessing
-        # class NoDaemonProcess(multiprocessing.Process):
-        #     @property
-        #     def daemon(self):
-        #         return False
-
-        #     @daemon.setter
-        #     def daemon(self, value):
-        #         pass
-
-
-        # class NoDaemonContext(type(multiprocessing.get_context())):
-        #     Process = NoDaemonProcess
-        # class NestablePool(multiprocessing.pool.Pool):
-        #     def __init__(self, *args, **kwargs):
-        #         kwargs['context'] = NoDaemonContext()
-        #         super(NestablePool, self).__init__(*args, **kwargs)
-
-
-
-        # with NestablePool(len(experts)) as p:
-        #     restuls = p.map(fit, trainers_modules)
-
-        # import concurrent.futures
-
-        # with concurrent.futures.ProcessPoolExecutor() as executor:
-        #     futures = {executor.submit(fit, task) for task in trainers_modules}
-
-        #     for fut in concurrent.futures.as_completed(futures):
-        #         print(f"The outcome is {fut.result()}")
-        
-
-        # sys.stdout = utils.StreamToLogger(experts_str, logging.INFO)
-        # sys.stderr = utils.StreamToLogger(experts_str, logging.ERROR)
-
-        # sys.stdout = utils.StreamToLogger2(logging.getLogger(), logging.INFO)
-        # sys.stderr = utils.StreamToLogger2(logging.getLogger(), logging.ERROR)
-
-        # sys.stdout.write = logger.info
-        # sys.stderr.write = logger.error
-        # logging.getLogger('pytorch_lightning').setLevel(0)
-
         for trainer_module, expert in zip(trainers_modules, experts_str):
             t = threading.Thread(target=fit,
                                 name=expert,
                                 args=[trainer_module])
             t.start()
-
-        # arg = [delayed(fit)(trainer_module) for trainer_module in trainers_modules]
-        # Parallel(n_jobs=len(experts))(delayed(fit)(trainer_module) for trainer_module in trainers_modules)
-        # Parallel(n_jobs=len(experts), backend="multiprocessing")(arg)

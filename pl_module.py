@@ -1,27 +1,14 @@
-import copy
-import os
-import sys
 from typing import Dict, Optional, List, Tuple
-
 import numpy as np
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from torch import nn
-from torch.autograd import Variable
-from torch.utils.data import DataLoader, random_split
-from torchvision.transforms import transforms
-from functools import partial
 from dataset import BelleII, BelleIIBetter, BelleIIExpert, BelleIIBetterExpert
-from utils import StreamToLogger2
+from torch.utils.data import DataLoader
 from model import BaselineModel, SimpleModel
-import numpy as np
 from visualize import Visualize
 import logging
 
-DEBUG = False
-# NUM_WORKERS = 4 #os.cpu_count() if not DEBUG else 0
 
 
 
@@ -33,7 +20,6 @@ class NeuroTrigger(pl.LightningModule):
         self.model = SimpleModel(hparams["in_size"], hparams["out_size"])
         # self.model = BaselineModel(hparams["in_size"], hparams["out_size"])
         self.expert = expert
-        # self.file_logger = logging.getLogger(f"expert_{expert}")
         self.file_logger = logging.getLogger()
 
 
@@ -47,20 +33,12 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug("DONE init")
 
-    def setup_logger(self):
-        sys.stdout = StreamToLogger2(self.file_logger,logging.INFO)
-        sys.stderr = StreamToLogger2(self.file_logger,logging.ERROR)
-
     def forward(self, x):
         return self.model(x)
-
 
     def training_step(self, batch, batch_idx):
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
-        #if self.hparams.get("noise") is not None:
-        #    bs = x.shape[0]
-        #    y = y+torch.normal(0, 1*0.005, size=(bs,), device=self.device)
         # TODO set more weight on z for learning and the loss function
         loss = self.crit(y_hat, y)
         self.log("loss", loss)
@@ -71,9 +49,7 @@ class NeuroTrigger(pl.LightningModule):
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
         self.log("val_loss", loss)
-        # TODO: compare loss to other networks output
-        # find out samples with very high loss
-        # compute and display loss of the other networks output
+        # TODO: find out samples with very high loss
 
         y_hat_old = batch[2]
         loss_old = self.crit(y_hat_old, y)
@@ -88,12 +64,7 @@ class NeuroTrigger(pl.LightningModule):
         self.log("test_loss", loss)
 
     def validation_epoch_end(self, outputs):
-        # todo, use outputs
-
         self.visualize.create_plots(torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
-        # self.visualize.y = (torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
-        # self.visualize.z_plot()
-        # self.visualize.hist_plot()
         self.file_logger.info(f"expert_{self.expert}: epoch #{self.current_epoch} finished")
 
 

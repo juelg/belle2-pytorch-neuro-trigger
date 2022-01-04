@@ -1,10 +1,6 @@
 from torch.utils.data import Dataset
 from pathlib import Path
-from torchvision.io import read_image
-from PIL import Image
-from PIL import ImageOps
 import torch
-import random
 import linecache
 from multiprocessing import Pool
 import time
@@ -136,6 +132,7 @@ class BelleIIBetter(Dataset):
             "expert": torch.Tensor(dt[:, 6]),
             "y_hat_old": torch.Tensor(dt[:, -4:-1:2]),
         }
+        self.logger.debug(f"Dataset {self.path} with length {len(self)} done init")
 
 
     def __len__(self):

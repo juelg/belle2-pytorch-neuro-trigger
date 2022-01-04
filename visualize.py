@@ -17,7 +17,6 @@ class Visualize:
         # self.data = Subset(data, np.arange(len(data))[:40000])
         self.data = data
         self.plots = [self.z_plot, self.hist_plot]
-        # self._y = None
 
         self.should_create_baseline_plots = True
 
@@ -34,16 +33,6 @@ class Visualize:
         y = torch.cat(y)
         y_ = torch.cat(y_hat)
         return y, y_
-
-    # @property
-    # def y(self):
-    #     if self._y is None:
-    #         self.y = self.forward()
-    #     return self._y
-
-    # @y.setter
-    # def y(self, y: Tuple[torch.Tensor, torch.Tensor]):
-    #     self._y = (y[0].cpu(), y[1].cpu())
 
 
     def buf2tensor(self, buf):
