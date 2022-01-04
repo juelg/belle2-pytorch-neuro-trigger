@@ -156,7 +156,7 @@ class BelleIIBetterExpert(BelleIIBetter):
         # senity check
         assert (self.data["expert"] == self.expert).all()
 
-        self.logger.debug(f"Dataset {self.path} expert #{self.expert} done init")
+        self.logger.debug(f"Dataset {self.path} expert #{self.expert} with length {len(self)} done init")
 
 
 if __name__ == "__main__":

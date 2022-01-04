@@ -1,4 +1,6 @@
-from multiprocessing import Pool
+# from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
+import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, base
 from dataset import BelleIIExpert
@@ -12,26 +14,38 @@ from configs import configs
 from pathlib import Path
 import logging
 import sys
+import utils
+from joblib import Parallel, delayed
+from concurrent.futures import ProcessPoolExecutor as Pool
 
 
 
-config = "baseline_v1"
+# TODO: idea, per training configs, e.g. different batch sizes
+# config = "baseline_v1"
+config = "only_z"
 base_log = "log"
 gpu_idx = 0
-experts = [-1] #[0, 1, 2, 3, 4]
+experts = [0, 1, 2, 3, 4] # [-1] #[0, 1, 2, 3, 4]
+enable_progress_bar = False
 
 # train = "/home/tobi/neurotrigger/train1"
 # val = "/home/tobi/neurotrigger/valid1"
 # test = "/home/tobi/neurotrigger/test1"
 
-train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+# train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
+# val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
+# test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+
+# sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
+train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
+val   = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
+test  = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 
 
 data = (train, val, test)
 hparams = configs[config]
 hparams["config"] = config
+experts_str = [f"expert_{i}" for i in experts]
 
 
 # check the latest version
@@ -60,48 +74,38 @@ logging.getLogger('matplotlib.colorbar').disabled = True
 logging.getLogger('PIL.PngImagePlugin').disabled = True
 logging.getLogger('h5py._conv').disabled = True
 
-# create file logger
+
+class ThreadLogFilter(logging.Filter):
+    """
+    This filter only show log entries for specified thread name
+    """
+
+    def __init__(self, thread_name, *args, **kwargs):
+        logging.Filter.__init__(self, *args, **kwargs)
+        self.thread_name = thread_name
+
+    def filter(self, record):
+        return record.threadName == self.thread_name
+
+
+# create file loggers
+logger = logging.getLogger()
 for expert in experts:
-    logger = logging.getLogger(f'expert_{expert}')
+    # logger = logging.getLogger(f'expert_{expert}')
     fh = logging.FileHandler(os.path.join(log_folder, f"expert_{expert}.log"), mode="w")
     fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:%(message)s')
+    formatter = logging.Formatter('%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
     fh.setFormatter(formatter)
+    fh.addFilter(ThreadLogFilter(f'expert_{expert}'))
     logger.addHandler(fh)
-
-class LambdaTrans():
-    def __init__(self, f):
-        self.f = f
-
-    def __call__(self, x):
-        return self.f(x)
-
-
-class StreamToLogger(object):
-    """
-    Fake file-like stream object that redirects writes to a logger instance.
-    """
-    def __init__(self, logger, level):
-       self.logger = logger
-       self.level = level
-       self.linebuf = ''
-
-    def write(self, buf):
-       for line in buf.rstrip().splitlines():
-          self.logger.log(self.level, line.rstrip())
-
-    def flush(self):
-        pass
 
 
 
 if __name__ == "__main__":
 
-
-
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
-        patience=5,
+        patience=10,
         strict=True,
         verbose=True,
         mode='min'
@@ -132,19 +136,75 @@ if __name__ == "__main__":
             default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
             #auto_select_gpus=True,
             #enable_pl_optimizer=True,
+            enable_progress_bar=enable_progress_bar,
         )
         trainers_modules.append((trainer, pl_module))
 
     def fit(trainer_module):
         # normal call: trainer.fit(pl_module)
 
-        # sys.stdout = StreamToLogger(logger,logging.INFO)
-        # sys.stderr = StreamToLogger(logger,logging.ERROR)
+        # trainer_module[1].setup_logger()
+
         trainer_module[0].fit(trainer_module[1])
 
 
 
-    fit(trainer_module=trainers_modules[0])
-    # TODO lookup how pool can allow child processes
-    # with Pool(len(experts)) as p:
-    #     p.map(fit, trainers_modules)
+    if len(experts) == 1:
+        # sys.stdout = utils.StreamToLogger2(logging.getLogger(experts_str[0]), logging.INFO)
+        # sys.stderr = utils.StreamToLogger2(logging.getLogger(experts_str[0]), logging.ERROR)
+        fit(trainer_module=trainers_modules[0])
+    else:
+        # TODO lookup how pool can allow child processes
+        # https://stackoverflow.com/questions/6974695/python-process-pool-non-daemonic
+
+        # import multiprocessing
+        # class NoDaemonProcess(multiprocessing.Process):
+        #     @property
+        #     def daemon(self):
+        #         return False
+
+        #     @daemon.setter
+        #     def daemon(self, value):
+        #         pass
+
+
+        # class NoDaemonContext(type(multiprocessing.get_context())):
+        #     Process = NoDaemonProcess
+        # class NestablePool(multiprocessing.pool.Pool):
+        #     def __init__(self, *args, **kwargs):
+        #         kwargs['context'] = NoDaemonContext()
+        #         super(NestablePool, self).__init__(*args, **kwargs)
+
+
+
+        # with NestablePool(len(experts)) as p:
+        #     restuls = p.map(fit, trainers_modules)
+
+        # import concurrent.futures
+
+        # with concurrent.futures.ProcessPoolExecutor() as executor:
+        #     futures = {executor.submit(fit, task) for task in trainers_modules}
+
+        #     for fut in concurrent.futures.as_completed(futures):
+        #         print(f"The outcome is {fut.result()}")
+        
+
+        # sys.stdout = utils.StreamToLogger(experts_str, logging.INFO)
+        # sys.stderr = utils.StreamToLogger(experts_str, logging.ERROR)
+
+        # sys.stdout = utils.StreamToLogger2(logging.getLogger(), logging.INFO)
+        # sys.stderr = utils.StreamToLogger2(logging.getLogger(), logging.ERROR)
+
+        # sys.stdout.write = logger.info
+        # sys.stderr.write = logger.error
+        # logging.getLogger('pytorch_lightning').setLevel(0)
+
+        for trainer_module, expert in zip(trainers_modules, experts_str):
+            t = threading.Thread(target=fit,
+                                name=expert,
+                                args=[trainer_module])
+            t.start()
+
+        # arg = [delayed(fit)(trainer_module) for trainer_module in trainers_modules]
+        # Parallel(n_jobs=len(experts))(delayed(fit)(trainer_module) for trainer_module in trainers_modules)
+        # Parallel(n_jobs=len(experts), backend="multiprocessing")(arg)

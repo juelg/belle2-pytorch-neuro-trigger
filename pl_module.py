@@ -1,5 +1,6 @@
 import copy
 import os
+import sys
 from typing import Dict, Optional, List, Tuple
 
 import numpy as np
@@ -13,6 +14,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision.transforms import transforms
 from functools import partial
 from dataset import BelleII, BelleIIBetter, BelleIIExpert, BelleIIBetterExpert
+from utils import StreamToLogger2
 from model import BaselineModel, SimpleModel
 import numpy as np
 from visualize import Visualize
@@ -31,7 +33,9 @@ class NeuroTrigger(pl.LightningModule):
         self.model = SimpleModel(hparams["in_size"], hparams["out_size"])
         # self.model = BaselineModel(hparams["in_size"], hparams["out_size"])
         self.expert = expert
-        self.file_logger = logging.getLogger(f"expert_{expert}")
+        # self.file_logger = logging.getLogger(f"expert_{expert}")
+        self.file_logger = logging.getLogger()
+
 
         if self.expert == -1:
             self.data = [BelleIIBetter(data[i], logger=self.file_logger) for i in range(3)]
@@ -43,6 +47,9 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug("DONE init")
 
+    def setup_logger(self):
+        sys.stdout = StreamToLogger2(self.file_logger,logging.INFO)
+        sys.stderr = StreamToLogger2(self.file_logger,logging.ERROR)
 
     def forward(self, x):
         return self.model(x)
@@ -87,6 +94,7 @@ class NeuroTrigger(pl.LightningModule):
         # self.visualize.y = (torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
         # self.visualize.z_plot()
         # self.visualize.hist_plot()
+        self.file_logger.info(f"expert_{self.expert}: epoch #{self.current_epoch} finished")
 
 
     def train_dataloader(self):
