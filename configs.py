@@ -51,9 +51,10 @@ def get_hyperpar_by_name(name):
 
 # TODO: 
 # - [x] add extending of other config
-# - [ ] add training for only z component
+# - [x] add training for only z component
 # - [x] add easy dict
 # - [ ] add categories in config
 # - [ ] safe git diff and commit id into log
 # - [ ] add change log
 # - [ ] per expert hparams -> which overwrite the default value
+# - [ ] issue with singal shutdown in thread

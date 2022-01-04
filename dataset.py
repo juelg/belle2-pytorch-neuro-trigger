@@ -120,7 +120,8 @@ class BelleIIExpert(BelleII):
 
 class BelleIIBetter(Dataset):
 
-    def __init__(self, path, logger) -> None:
+    def __init__(self, path, logger, out_dim) -> None:
+        # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.path = path
         self.logger = logger
@@ -128,9 +129,11 @@ class BelleIIBetter(Dataset):
             dt = np.loadtxt(path, skiprows=2)
         self.data = {
             "x": torch.Tensor(dt[:, 9:36]),
-            "y": torch.Tensor(dt[:, 36:38]),
+            # only 36:37 if only z (out_dim=2)
+            "y": torch.Tensor(dt[:, 36:36+out_dim]),
             "expert": torch.Tensor(dt[:, 6]),
-            "y_hat_old": torch.Tensor(dt[:, -4:-1:2]),
+            # out_dim==2 -> -4:-3:2 out_dim==1 -> -4:-3:2
+            "y_hat_old": torch.Tensor(dt[:, -4:(-1 if out_dim==2 else -3):2]),
         }
         self.logger.debug(f"Dataset {self.path} with length {len(self)} done init")
 
@@ -142,8 +145,8 @@ class BelleIIBetter(Dataset):
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx]
 
 class BelleIIBetterExpert(BelleIIBetter):
-    def __init__(self, path, expert, logger) -> None:
-        super().__init__(path, logger)
+    def __init__(self, expert, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.expert = expert
         # filter out all samples that do not belong to this expert
         # create index map

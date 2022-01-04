@@ -1,16 +1,13 @@
 from typing import Dict, Optional, List, Tuple
-import numpy as np
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from dataset import BelleII, BelleIIBetter, BelleIIExpert, BelleIIBetterExpert
+from dataset import BelleIIBetter, BelleIIBetterExpert
 from torch.utils.data import DataLoader
 from model import BaselineModel, SimpleModel
 from visualize import Visualize
 import logging
 from easydict import EasyDict
-
-
 
 
 class NeuroTrigger(pl.LightningModule):
@@ -23,11 +20,12 @@ class NeuroTrigger(pl.LightningModule):
         self.expert = expert
         self.file_logger = logging.getLogger()
 
-
         if self.expert == -1:
-            self.data = [BelleIIBetter(data[i], logger=self.file_logger) for i in range(3)]
+            self.data = [BelleIIBetter(
+                data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
         else:
-            self.data = [BelleIIBetterExpert(data[i], logger=self.file_logger, expert=self.expert) for i in range(3)]
+            self.data = [BelleIIBetterExpert(self.expert,
+                data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
 
         self.crit = torch.nn.MSELoss()
         self.save_hyperparameters()
@@ -65,23 +63,22 @@ class NeuroTrigger(pl.LightningModule):
         self.log("test_loss", loss)
 
     def validation_epoch_end(self, outputs):
-        self.visualize.create_plots(torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
-        self.file_logger.info(f"expert_{self.expert}: epoch #{self.current_epoch} finished")
-
+        self.visualize.create_plots(
+            torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
+        self.file_logger.info(
+            f"expert_{self.expert}: epoch #{self.current_epoch} finished")
 
     def train_dataloader(self):
         return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
-                              drop_last=True, pin_memory=True, shuffle=True)
+                          drop_last=True, pin_memory=True, shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(self.data[1], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
-                              drop_last=True, pin_memory=True)
-
+                          drop_last=True, pin_memory=True)
 
     def test_dataloader(self):
         return DataLoader(self.data[2], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
-                              drop_last=True, pin_memory=True)
+                          drop_last=True, pin_memory=True)
 
     def configure_optimizers(self):
         return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
-    
