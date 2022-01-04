@@ -8,17 +8,18 @@ from torch.utils.data import DataLoader
 from model import BaselineModel, SimpleModel
 from visualize import Visualize
 import logging
+from easydict import EasyDict
 
 
 
 
 class NeuroTrigger(pl.LightningModule):
 
-    def __init__(self, hparams: Dict, data, expert=-1):
+    def __init__(self, hparams: EasyDict, data, expert=-1):
         super().__init__()
         self.hparams.update(hparams)
-        self.model = SimpleModel(hparams["in_size"], hparams["out_size"])
-        # self.model = BaselineModel(hparams["in_size"], hparams["out_size"])
+        self.model = SimpleModel(hparams.in_size, hparams.out_size)
+        # self.model = BaselineModel(hparams.in_size, hparams.out_size)
         self.expert = expert
         self.file_logger = logging.getLogger()
 
@@ -69,18 +70,18 @@ class NeuroTrigger(pl.LightningModule):
 
 
     def train_dataloader(self):
-        return DataLoader(self.data[0], batch_size=self.hparams["batch_size"], num_workers=self.hparams["workers"],
+        return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                               drop_last=True, pin_memory=True, shuffle=True)
 
     def val_dataloader(self):
-        return DataLoader(self.data[1], batch_size=self.hparams["batch_size"], num_workers=self.hparams["workers"],
+        return DataLoader(self.data[1], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                               drop_last=True, pin_memory=True)
 
 
     def test_dataloader(self):
-        return DataLoader(self.data[2], batch_size=self.hparams["batch_size"], num_workers=self.hparams["workers"],
+        return DataLoader(self.data[2], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                               drop_last=True, pin_memory=True)
 
     def configure_optimizers(self):
-        return optim.Adam(self.model.parameters(), self.hparams['learning_rate'], weight_decay=self.hparams.get('weight_decay', 0))
+        return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
     

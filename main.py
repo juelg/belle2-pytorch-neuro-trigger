@@ -3,10 +3,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pl_module import NeuroTrigger
 import os
-from configs import configs
+from configs import get_hyperpar_by_name
 from pathlib import Path
 import logging
 
+# Version to check with the config, only when versions match can we proceed
+version = 0.1
 
 
 # TODO: idea, per training configs, e.g. different batch sizes
@@ -32,14 +34,13 @@ test  = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100r
 
 
 data = (train, val, test)
-hparams = configs[config]
-hparams["config"] = config
-experts_str = [f"expert_{i}" for i in experts]
+hparams = get_hyperpar_by_name(config)
 
+experts_str = [f"expert_{i}" for i in experts]
+logger = logging.getLogger()
 
 # check the latest version
 version = max([int(str(i).split("_")[-1]) for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
-print(version)
 
 log_folder = os.path.join(base_log, config, f"version_{version}")
 # todo maybe create folder
@@ -62,7 +63,6 @@ logging.getLogger('matplotlib.colorbar').disabled = True
 logging.getLogger('PIL.PngImagePlugin').disabled = True
 logging.getLogger('h5py._conv').disabled = True
 
-
 class ThreadLogFilter(logging.Filter):
     """
     This filter only show log entries for specified thread name
@@ -75,9 +75,14 @@ class ThreadLogFilter(logging.Filter):
     def filter(self, record):
         return record.threadName == self.thread_name
 
+# general logger which logs everything
+fh = logging.FileHandler(os.path.join(log_folder, f"app.log"), mode="w")
+fh.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 # create file loggers
-logger = logging.getLogger()
 for expert in experts:
     fh = logging.FileHandler(os.path.join(log_folder, f"expert_{expert}.log"), mode="w")
     fh.setLevel(logging.DEBUG)
@@ -86,6 +91,7 @@ for expert in experts:
     fh.addFilter(ThreadLogFilter(f'expert_{expert}'))
     logger.addHandler(fh)
 
+logger.info(f"Using config {config} in version {version}")
 
 
 if __name__ == "__main__":
