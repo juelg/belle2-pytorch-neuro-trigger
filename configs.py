@@ -6,13 +6,11 @@ configs = {
         "version": 0.1,
         "extends": "base",
         "learning_rate": 1e-3,
-        "batch_size": 2048,
         "weight_decay": 1e-6,
         "in_size": 27,
         "out_size": 2,
         "workers": 6,
-        "noise": None,
-        "epochs": 50
+        "epochs": 1000,
     },
     "only_z": {
         "version": 0.1,
@@ -32,7 +30,7 @@ configs = {
         "model": "BaselineModel",
         "loss": "MSELoss",
         "expert_0": {
-            "batch_size": 2042,
+            "batch_size": 2048,
         },
         "expert_1": {
             "batch_size": 2042,

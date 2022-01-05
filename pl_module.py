@@ -10,6 +10,7 @@ import logging
 from easydict import EasyDict
 import copy
 from __init__ import crits, models
+import numpy as np
 
 
 class NeuroTrigger(pl.LightningModule):
@@ -34,7 +35,8 @@ class NeuroTrigger(pl.LightningModule):
         self.crit = crits[self.hparams.loss]  # torch.nn.MSELoss()
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
-        self.file_logger.debug("DONE init")
+        self.file_logger.debug(
+            f"DONE init expert {self.expert} with loss '{self.hparams.loss}' and model '{self.hparams.model}'")
 
     def extract_expert_hparams(self, hparams):
         expert_hparams = copy.deepcopy(hparams)
@@ -62,9 +64,10 @@ class NeuroTrigger(pl.LightningModule):
 
         y_hat_old = batch[2]
         loss_old = self.crit(y_hat_old, y)
-        self.log("val_loss_vs_old_loss", loss/loss_old)
+        val_loss_vs_old_loss = loss/loss_old
+        self.log("val_loss_vs_old_loss", val_loss_vs_old_loss)
 
-        return y, y_hat
+        return y, y_hat, loss, val_loss_vs_old_loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch[0], batch[1]
@@ -76,7 +79,7 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize.create_plots(
             torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
         self.file_logger.info(
-            f"expert_{self.expert}: epoch #{self.current_epoch} finished")
+            f"expert_{self.expert}: epoch #{self.current_epoch} finished with val {np.mean(([i[2] for i in outputs])):.{3}f} and {np.mean(([i[3] for i in outputs])):.{3}f} vs old")
 
     def train_dataloader(self):
         return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,

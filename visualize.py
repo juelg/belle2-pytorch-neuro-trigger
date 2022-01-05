@@ -8,6 +8,7 @@ import io
 from torchvision.transforms import ToTensor
 import PIL
 import torch
+from pytorch_lightning.loggers import TensorBoardLogger
 
 
 class Visualize:
@@ -65,6 +66,16 @@ class Visualize:
         for plot_f in self.plots:
             plot_f(y, y_hat, suffix)
 
+    def get_tb_logger(self):
+        if isinstance(self.module.logger, TensorBoardLogger):
+            return self.module.logger
+        for logger in self.module.logger:
+            if isinstance(logger, TensorBoardLogger):
+                return logger
+        raise RuntimeError("There must be a TensorBoardLogger within the loggers")
+
+
+
     def z_plot(self, y, y_hat, suffix=""):
 
         # scatter histogram
@@ -83,7 +94,7 @@ class Visualize:
         ax.set_ylim([-1, 1])
 
         img = self.fig2buf2tensor(fig)
-        self.module.logger.experiment.add_image(
+        self.get_tb_logger().experiment.add_image(
             f"z-plot{suffix}", img, self.module.current_epoch)
 
     def hist_plot(self, y, y_hat, suffix=""):
@@ -91,5 +102,5 @@ class Visualize:
         ax.hist(y_hat[:, 0].numpy(), bins=100)
         ax.set(xlabel="Neuro Z")
         img = self.fig2buf2tensor(fig)
-        self.module.logger.experiment.add_image(
+        self.get_tb_logger().experiment.add_image(
             f"z-hist{suffix}", img, self.module.current_epoch)

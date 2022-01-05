@@ -6,10 +6,11 @@ import os
 from configs import get_hyperpar_by_name
 from pathlib import Path
 import logging
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 
-# config = "baseline_v1"
-config = "only_z"
+config = "baseline_v1"
+# config = "only_z"
 base_log = "log"
 gpu_idx = 0
 experts = [0, 1, 2, 3, 4]  # [-1] #[0, 1, 2, 3, 4]
@@ -112,21 +113,24 @@ if __name__ == "__main__":
     for expert in experts:
         early_stop_callback = EarlyStopping(
             monitor='val_loss',
-            patience=10,
+            patience=30,
             strict=True,
             verbose=True,
             mode='min'
         )
         model_checkpoint = ModelCheckpoint(
+            os.path.join(log_folder, f"expert_{expert}", "ckpts"),
             monitor='val_loss',
             save_last=True,
             save_top_k=1,
         )
-        # callbacks = [early_stop_callback, model_checkpoint]
-        callbacks = [model_checkpoint]
+        callbacks = [early_stop_callback, model_checkpoint]
+        # callbacks = [model_checkpoint]
 
         pl_module = NeuroTrigger(hparams, data, expert=expert)
         trainer = pl.Trainer(
+            logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
+                        CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv")],
             # row_log_interval=1,
             # track_grad_norm=2,
             # weights_summary=None,
@@ -134,6 +138,7 @@ if __name__ == "__main__":
             callbacks=callbacks,
             max_epochs=hparams["epochs"],
             deterministic=True,
+            # log_every_n_steps=1,
             # profiler=True,
             # fast_dev_run=True,
             # gpus=[gpu_idx], #[0, 1],
@@ -149,7 +154,7 @@ if __name__ == "__main__":
             trainer_module[0].fit(trainer_module[1])
         except ValueError:
             # needed to avoid signal error from pytorch lightning in threads
-            pass
+            logger.info(f"Expert {trainer_module[1].expert} has finished training.")
 
     if len(experts) == 1:
         fit(trainer_module=trainers_modules[0])
