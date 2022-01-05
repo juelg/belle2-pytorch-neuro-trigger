@@ -28,7 +28,9 @@ configs = {
         "in_size": 27,
         "out_size": 2,
         "workers": 5,
-        "epochs": 50,
+        "epochs": 10,
+        "model": "BaselineModel",
+        "loss": "MSELoss",
         "expert_0": {
             "batch_size": 2042,
         },
@@ -49,6 +51,7 @@ configs = {
 
 }
 
+
 def extend(use_dict):
     if use_dict.get("extends"):
         name = use_dict.get("extends")
@@ -63,4 +66,3 @@ def get_hyperpar_by_name(name):
     hparams = configs[name]
     hparams["config"] = name
     return EasyDict(extend(hparams))
-

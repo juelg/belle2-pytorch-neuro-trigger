@@ -8,8 +8,8 @@ from model import BaselineModel, SimpleModel
 from visualize import Visualize
 import logging
 from easydict import EasyDict
-import utils
 import copy
+from __init__ import crits, models
 
 
 class NeuroTrigger(pl.LightningModule):
@@ -18,8 +18,9 @@ class NeuroTrigger(pl.LightningModule):
         super().__init__()
         self.expert = expert
         self.hparams.update(self.extract_expert_hparams(hparams))
-        self.model = SimpleModel(hparams.in_size, hparams.out_size)
+        # self.model = SimpleModel(hparams.in_size, hparams.out_size)
         # self.model = BaselineModel(hparams.in_size, hparams.out_size)
+        self.model = models[self.hparams.model](hparams.in_size, hparams.out_size)
         self.file_logger = logging.getLogger()
 
         if self.expert == -1:
@@ -29,17 +30,10 @@ class NeuroTrigger(pl.LightningModule):
             self.data = [BelleIIBetterExpert(self.expert,
                 data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
 
-        self.crit = torch.nn.MSELoss()
+        self.crit = crits[self.hparams.loss] # torch.nn.MSELoss()
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug("DONE init")
-
-
-    # # recursivly go through args and check if exisits in local expert hparam dict
-    # def get_hparam(self, *args):
-    #     re = utils.nested_dict(self.hparams, f"expert_{self.expert}", *args)
-    #     if re is None:
-    #         return utils.nested_dict(self.hparams, *args)
 
     def extract_expert_hparams(self, hparams):
         expert_hparams = copy.deepcopy(hparams)

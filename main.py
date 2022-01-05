@@ -140,7 +140,12 @@ if __name__ == "__main__":
         trainers_modules.append((trainer, pl_module))
 
     def fit(trainer_module):
-        trainer_module[0].fit(trainer_module[1])
+        try:
+            trainer_module[0].fit(trainer_module[1])
+        except ValueError:
+            # needed to avoid signal error from pytorch lightning in threads
+            pass
+
 
     if len(experts) == 1:
         fit(trainer_module=trainers_modules[0])

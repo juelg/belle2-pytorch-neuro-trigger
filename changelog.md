@@ -9,5 +9,5 @@
 - [x] save git diff and commit id into log
 - [x] add change log
 - [x] per expert hparams -> which overwrite the default value e.g. different bach sizes
-- [ ] issue with singal shutdown in thread
-- [ ] models and critic function also in configuration using dicts
+- [x] issue with singal shutdown in thread
+- [x] models and critic function also in configuration using dicts
