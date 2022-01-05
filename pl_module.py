@@ -8,16 +8,18 @@ from model import BaselineModel, SimpleModel
 from visualize import Visualize
 import logging
 from easydict import EasyDict
+import utils
+import copy
 
 
 class NeuroTrigger(pl.LightningModule):
 
     def __init__(self, hparams: EasyDict, data, expert=-1):
         super().__init__()
-        self.hparams.update(hparams)
+        self.expert = expert
+        self.hparams.update(self.extract_expert_hparams(hparams))
         self.model = SimpleModel(hparams.in_size, hparams.out_size)
         # self.model = BaselineModel(hparams.in_size, hparams.out_size)
-        self.expert = expert
         self.file_logger = logging.getLogger()
 
         if self.expert == -1:
@@ -31,6 +33,24 @@ class NeuroTrigger(pl.LightningModule):
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug("DONE init")
+
+
+    # # recursivly go through args and check if exisits in local expert hparam dict
+    # def get_hparam(self, *args):
+    #     re = utils.nested_dict(self.hparams, f"expert_{self.expert}", *args)
+    #     if re is None:
+    #         return utils.nested_dict(self.hparams, *args)
+
+    def extract_expert_hparams(self, hparams):
+        expert_hparams = copy.deepcopy(hparams)
+        new_expert_hparams = hparams.get(f"expert_{self.expert}", {})
+        expert_hparams.update(new_expert_hparams)
+        return expert_hparams
+        
+        
+
+
+
 
     def forward(self, x):
         return self.model(x)

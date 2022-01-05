@@ -4,6 +4,7 @@ import copy
 configs = {
     "baseline_v1": {
         "version": 0.1,
+        "extends": "base",
         "learning_rate": 1e-3,
         "batch_size": 2048,
         "weight_decay": 1e-6,
@@ -27,7 +28,22 @@ configs = {
         "in_size": 27,
         "out_size": 2,
         "workers": 5,
-        "epochs": 50
+        "epochs": 50,
+        "expert_0": {
+            "batch_size": 2042,
+        },
+        "expert_1": {
+            "batch_size": 2042,
+        },
+        "expert_2": {
+            "batch_size": 16,
+        },
+        "expert_3": {
+            "batch_size": 128,
+        },
+        "expert_4": {
+            "batch_size": 32,
+        },
     }
 
 
@@ -48,13 +64,3 @@ def get_hyperpar_by_name(name):
     hparams["config"] = name
     return EasyDict(extend(hparams))
 
-
-# TODO: 
-# - [x] add extending of other config
-# - [x] add training for only z component
-# - [x] add easy dict
-# - [ ] add categories in config
-# - [x] save git diff and commit id into log
-# - [ ] add change log
-# - [ ] per expert hparams -> which overwrite the default value
-# - [ ] issue with singal shutdown in thread

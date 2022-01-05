@@ -7,11 +7,7 @@ from configs import get_hyperpar_by_name
 from pathlib import Path
 import logging
 
-# Version to check with the config, only when versions match can we proceed
-version = 0.1
 
-
-# TODO: idea, per training configs, e.g. different batch sizes
 # config = "baseline_v1"
 config = "only_z"
 base_log = "log"
