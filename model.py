@@ -1,7 +1,9 @@
 from torch import nn
 
+
 def pad(f):
     return int((f - 1) / 2)
+
 
 class BaselineModel(nn.Module):
     def __init__(self, inp=27, out=2):
@@ -15,6 +17,7 @@ class BaselineModel(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
 
 class SimpleModel(nn.Module):
     def __init__(self, inp=27, out=2, act=nn.ReLU):
@@ -39,4 +42,3 @@ class SimpleModel(nn.Module):
         # get models dtype for conversion:
         # next(self.parameters()).dtype
         return self.net(x)
-

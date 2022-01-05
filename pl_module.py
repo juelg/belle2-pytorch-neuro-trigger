@@ -20,7 +20,8 @@ class NeuroTrigger(pl.LightningModule):
         self.hparams.update(self.extract_expert_hparams(hparams))
         # self.model = SimpleModel(hparams.in_size, hparams.out_size)
         # self.model = BaselineModel(hparams.in_size, hparams.out_size)
-        self.model = models[self.hparams.model](hparams.in_size, hparams.out_size)
+        self.model = models[self.hparams.model](
+            hparams.in_size, hparams.out_size)
         self.file_logger = logging.getLogger()
 
         if self.expert == -1:
@@ -28,9 +29,9 @@ class NeuroTrigger(pl.LightningModule):
                 data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
         else:
             self.data = [BelleIIBetterExpert(self.expert,
-                data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
+                                             data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
 
-        self.crit = crits[self.hparams.loss] # torch.nn.MSELoss()
+        self.crit = crits[self.hparams.loss]  # torch.nn.MSELoss()
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug("DONE init")
@@ -40,11 +41,6 @@ class NeuroTrigger(pl.LightningModule):
         new_expert_hparams = hparams.get(f"expert_{self.expert}", {})
         expert_hparams.update(new_expert_hparams)
         return expert_hparams
-        
-        
-
-
-
 
     def forward(self, x):
         return self.model(x)

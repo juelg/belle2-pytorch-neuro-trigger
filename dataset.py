@@ -11,6 +11,8 @@ import gzip
 import numpy as np
 
 import hashlib
+
+
 def md5(fname):
     hash_md5 = hashlib.md5()
     with open(fname, "rb") as f:
@@ -39,7 +41,8 @@ class BelleII(Dataset):
                 self.logger.debug("Already cached, loading it")
                 self.data = self.open()
             else:
-                self.logger.debug(f"{self.path} not cached yet, start caching, this might take a while")
+                self.logger.debug(
+                    f"{self.path} not cached yet, start caching, this might take a while")
                 t1 = time.time()
                 with Pool(10) as p:
                     with gzip.open(self.path) as f:
@@ -55,12 +58,11 @@ class BelleII(Dataset):
                     "x": torch.Tensor([i[0] for i in splitted]),
                     "y": torch.Tensor([i[1] for i in splitted]),
                     "expert": torch.Tensor([i[2] for i in splitted]),
-                    #"meta": torch.Tensor([i[3] for i in splitted]),
+                    # "meta": torch.Tensor([i[3] for i in splitted]),
                 }
                 self.save()
                 self.logger.debug("Done saving the cache blob")
         self.logger.debug(f"Dataset {self.path} done init")
-
 
     # idea to identify dataset file -> use hash over file
 
@@ -69,11 +71,10 @@ class BelleII(Dataset):
             Path(self._cache_dir).mkdir()
         with open(os.path.join(self._cache_dir, self._cache_file), "wb") as f:
             torch.save(self.data, f)
-                
+
     def open(self):
         with open(os.path.join(self._cache_dir, self._cache_file), "rb") as f:
             return torch.load(f)
-
 
     @staticmethod
     def line2data(line):
@@ -85,8 +86,7 @@ class BelleII(Dataset):
         y = [float(i) for i in splitted[35:37]]
         expert = float(splitted[6])
         # meta = [float(i) for i in splitted[0:5]]
-        return x, y , expert #, meta
-
+        return x, y, expert  # , meta
 
     def __len__(self):
         return len(self.data["x"])
@@ -107,7 +107,8 @@ class BelleIIExpert(BelleII):
         self.expert = expert
         # filter out all samples that do not belong to this expert
         # create index map
-        keep = [idx for idx, i in enumerate(self.data["expert"]) if i==self.expert]
+        keep = [idx for idx, i in enumerate(
+            self.data["expert"]) if i == self.expert]
         # overwrite in order to get back memory from unused data
         self.data = {key: val[keep] for key, val in self.data.items()}
         # senity check
@@ -115,7 +116,8 @@ class BelleIIExpert(BelleII):
 
         # set the length correct
         # self.l = len(self.data["x"])
-        self.logger.debug(f"Dataset {self.path} expert #{self.expert} done init")
+        self.logger.debug(
+            f"Dataset {self.path} expert #{self.expert} done init")
 
 
 class BelleIIBetter(Dataset):
@@ -133,10 +135,10 @@ class BelleIIBetter(Dataset):
             "y": torch.Tensor(dt[:, 36:36+out_dim]),
             "expert": torch.Tensor(dt[:, 6]),
             # out_dim==2 -> -4:-3:2 out_dim==1 -> -4:-3:2
-            "y_hat_old": torch.Tensor(dt[:, -4:(-1 if out_dim==2 else -3):2]),
+            "y_hat_old": torch.Tensor(dt[:, -4:(-1 if out_dim == 2 else -3):2]),
         }
-        self.logger.debug(f"Dataset {self.path} with length {len(self)} done init")
-
+        self.logger.debug(
+            f"Dataset {self.path} with length {len(self)} done init")
 
     def __len__(self):
         return len(self.data["x"])
@@ -144,26 +146,26 @@ class BelleIIBetter(Dataset):
     def __getitem__(self, idx):
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx]
 
+
 class BelleIIBetterExpert(BelleIIBetter):
     def __init__(self, expert, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.expert = expert
         # filter out all samples that do not belong to this expert
         # create index map
-        keep = [idx for idx, i in enumerate(self.data["expert"]) if i==self.expert]
+        keep = [idx for idx, i in enumerate(
+            self.data["expert"]) if i == self.expert]
         # overwrite in order to get back memory from unused data
         self.data = {key: val[keep] for key, val in self.data.items()}
         # senity check
         assert (self.data["expert"] == self.expert).all()
 
-        self.logger.debug(f"Dataset {self.path} expert #{self.expert} with length {len(self)} done init")
+        self.logger.debug(
+            f"Dataset {self.path} expert #{self.expert} with length {len(self)} done init")
 
 
 if __name__ == "__main__":
-    b = BelleIIBetter("/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz", logging.getLogger("test"))
+    b = BelleIIBetter(
+        "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz", logging.getLogger("test"))
     for i in b[:1]:
         print(i)
-
-
-
-
