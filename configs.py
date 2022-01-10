@@ -3,23 +3,23 @@ import copy
 
 configs = {
     "baseline_v1": {
-        "version": 0.1,
         "extends": "base",
         "learning_rate": 1e-3,
         "weight_decay": 1e-6,
         "in_size": 27,
         "out_size": 2,
-        "workers": 6,
         "epochs": 1000,
+        "description": "Baseline arch with tanh",
     },
-    "only_z": {
-        "version": 0.1,
-        "extends": "base",
-        "in_size": 27,
+    "baseline_only_z": {
+        "extends": "baseline_v1",
+        # only train on the z target
         "out_size": 1,
+        "description": "like baseline_v1 but only trains on the z target",
     },
     "base": {
-        "version": 0.1,
+        "version": 0.2,
+        "description": "Base version to inherit from",
         "learning_rate": 1e-3,
         "batch_size": 32,
         "weight_decay": 1e-6,
@@ -29,11 +29,12 @@ configs = {
         "epochs": 10,
         "model": "BaselineModel",
         "loss": "MSELoss",
+        "experts": [0, 1, 2, 3, 4],
         "expert_0": {
             "batch_size": 2048,
         },
         "expert_1": {
-            "batch_size": 2042,
+            "batch_size": 2048,
         },
         "expert_2": {
             "batch_size": 16,

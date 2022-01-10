@@ -8,13 +8,12 @@ from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
-
+debug = True
 config = "baseline_v1"
-# config = "only_z"
-base_log = "log"
+base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
 gpu_idx = 0
-experts = [0, 1, 2, 3, 4]  # [-1] #[0, 1, 2, 3, 4]
 enable_progress_bar = False
+
 
 # train = "/home/tobi/neurotrigger/train1"
 # val = "/home/tobi/neurotrigger/valid1"
@@ -25,13 +24,21 @@ enable_progress_bar = False
 # test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
-train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+if debug:
+    train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
+    val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
+    test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+else:
+    train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
+    val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
+    test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+    desc = input("Short experiment description: ")
+
 
 
 data = (train, val, test)
 hparams = get_hyperpar_by_name(config)
+experts = hparams.experts # [-1] #[0, 1, 2, 3, 4]
 
 experts_str = [f"expert_{i}" for i in experts]
 logger = logging.getLogger()
@@ -44,6 +51,12 @@ log_folder = os.path.join(base_log, config, f"version_{version}")
 # todo maybe create folder
 if not Path(log_folder).exists():
     Path(log_folder).mkdir(parents=True)
+
+if not debug:
+    # force a short experiment description
+    with open(os.path.join(log_folder, "desc.txt"), "w") as f:
+        f.write(f"Config description: {hparams.description}")
+    os.system(f"vim {os.path.join(log_folder, 'desc.txt')}")
 
 
 logging.basicConfig(
