@@ -8,7 +8,7 @@ from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
-debug = True
+debug = False
 config = "baseline_v1"
 base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
 gpu_idx = 0
@@ -29,10 +29,9 @@ if debug:
     val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
     test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 else:
-    train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-    val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-    test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
-    desc = input("Short experiment description: ")
+    train = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
+    val = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
+    test = "/home/iwsatlas1/juelg/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 
 
 

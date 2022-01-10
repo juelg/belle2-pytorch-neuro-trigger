@@ -21,7 +21,7 @@ configs = {
         "version": 0.2,
         "description": "Base version to inherit from",
         "learning_rate": 1e-3,
-        "batch_size": 32,
+        "batch_size": 2048,
         "weight_decay": 1e-6,
         "in_size": 27,
         "out_size": 2,
@@ -30,21 +30,22 @@ configs = {
         "model": "BaselineModel",
         "loss": "MSELoss",
         "experts": [0, 1, 2, 3, 4],
-        "expert_0": {
-            "batch_size": 2048,
-        },
-        "expert_1": {
-            "batch_size": 2048,
-        },
-        "expert_2": {
-            "batch_size": 16,
-        },
-        "expert_3": {
-            "batch_size": 128,
-        },
-        "expert_4": {
-            "batch_size": 32,
-        },
+        # for smaller datasets
+        # "expert_0": {
+        #     "batch_size": 2048,
+        # },
+        # "expert_1": {
+        #     "batch_size": 2048,
+        # },
+        # "expert_2": {
+        #     "batch_size": 16,
+        # },
+        # "expert_3": {
+        #     "batch_size": 128,
+        # },
+        # "expert_4": {
+        #     "batch_size": 32,
+        # },
     }
 
 
