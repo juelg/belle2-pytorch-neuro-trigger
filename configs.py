@@ -2,6 +2,18 @@ from easydict import EasyDict
 import copy
 
 configs = {
+
+    "simple_model_v1": {
+        "extends": "baseline_v1",
+        "model": "SimpleModel",
+    },
+    "simple_model_v1_only_z": {
+        "extends": "simple_model_v1",
+        # only train on the z target
+        "out_size": 1,
+        "description": "like baseline_v1 but only trains on the z target",
+    },
+
     "baseline_v1": {
         "extends": "base",
         "learning_rate": 1e-3,
@@ -11,7 +23,7 @@ configs = {
         "epochs": 1000,
         "description": "Baseline arch with tanh",
     },
-    "baseline_only_z": {
+    "baseline_v1_only_z": {
         "extends": "baseline_v1",
         # only train on the z target
         "out_size": 1,
