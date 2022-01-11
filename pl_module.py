@@ -94,4 +94,11 @@ class NeuroTrigger(pl.LightningModule):
                           drop_last=True, pin_memory=True)
 
     def configure_optimizers(self):
-        return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        # definition of supported optimizers
+        if self.hparams.optim == "Adam":
+            return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
+        elif self.hparams.optim == "Rprob":
+            return optim.Rprop(self.model.parameters(), self.hparams.learning_rate)
+        else:
+            raise RuntimeError(f"Optimizer {self.hparams.optim} is not defined!")
+

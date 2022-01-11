@@ -41,6 +41,7 @@ configs = {
         "epochs": 10,
         "model": "BaselineModel",
         "loss": "MSELoss",
+        "optim": "Adam",
         "experts": [0, 1, 2, 3, 4],
         # for smaller datasets
         # "expert_0": {
