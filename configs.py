@@ -5,6 +5,7 @@ configs = {
 
     "simple_model_v1": {
         "extends": "baseline_v1",
+        "act": "relu",
         "model": "SimpleModel",
     },
     "simple_model_v1_only_z": {
@@ -22,6 +23,7 @@ configs = {
         "out_size": 2,
         "epochs": 1000,
         "description": "Baseline arch with tanh",
+        "act": "tanh",
     },
     "baseline_v1_only_z": {
         "extends": "baseline_v1",
@@ -42,6 +44,7 @@ configs = {
         "model": "BaselineModel",
         "loss": "MSELoss",
         "optim": "Adam",
+        "act": "relu",
         "experts": [0, 1, 2, 3, 4],
         # for smaller datasets
         # "expert_0": {

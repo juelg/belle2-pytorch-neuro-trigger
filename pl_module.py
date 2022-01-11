@@ -9,8 +9,15 @@ from visualize import Visualize
 import logging
 from easydict import EasyDict
 import copy
-from __init__ import crits, models
+from __init__ import crits, models, act_fun
 import numpy as np
+
+def init_weights(m, act):
+    if isinstance(m, torch.nn.Linear):
+        torch.nn.init.xavier_uniform_(m.weight, torch.nn.init.calculate_gain(act))
+        # leave bias as it is
+        # m.bias.data.fill_(0.01)
+
 
 
 class NeuroTrigger(pl.LightningModule):
@@ -22,7 +29,8 @@ class NeuroTrigger(pl.LightningModule):
         # self.model = SimpleModel(hparams.in_size, hparams.out_size)
         # self.model = BaselineModel(hparams.in_size, hparams.out_size)
         self.model = models[self.hparams.model](
-            hparams.in_size, hparams.out_size)
+            hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
+        self.model.apply(init_weights, self.hparams.act)
         self.file_logger = logging.getLogger()
 
         if self.expert == -1:

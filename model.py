@@ -6,13 +6,13 @@ def pad(f):
 
 
 class BaselineModel(nn.Module):
-    def __init__(self, inp=27, out=2):
+    def __init__(self, inp=27, out=2, act=nn.Tanh):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(inp, 81),
-            nn.Tanh(),
+            act(),
             nn.Linear(81, out),
-            nn.Tanh(),
+            act(),
         )
 
     def forward(self, x):

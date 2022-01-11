@@ -13,3 +13,12 @@ models = {
     "BaselineModel": model.BaselineModel,
     "SimpleModel": model.SimpleModel,
 }
+
+act_fun = {
+    "tanh": torch.nn.Tanh,
+    "relu": torch.nn.ReLU,
+    "sigmoid": torch.nn.Sigmoid,
+    "leaky_relu": torch.nn.LeakyReLU,
+    "selu": torch.nn.SELU,
+}
+
