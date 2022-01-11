@@ -6,9 +6,9 @@
 - [ ] add statistical values such as mean and std to the plots
 - [ ] add categories in config
 - [x] implement rprop, generalize optimizers and put them into config
-- [ ] fix weight init
+- [x] fix weight init
 - [ ] baseline model v2 with BN and Relu
-- [ ] act function into the config
+- [x] act function into the config
 - [ ] reweighting of trainings sample
 
 ## Version 0.2

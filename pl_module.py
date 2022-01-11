@@ -16,7 +16,6 @@ def init_weights(m, act):
     if isinstance(m, torch.nn.Linear):
         torch.nn.init.xavier_uniform_(m.weight, torch.nn.init.calculate_gain(act))
         # leave bias as it is
-        # m.bias.data.fill_(0.01)
 
 
 
