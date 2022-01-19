@@ -54,7 +54,7 @@ class Visualize:
     def create_baseline_plots(self):
         self.create_plots(
             self.data.data["y"], self.data.data["y_hat_old"], suffix="-old")
-        self.hist_plot(None, self.data.data["y"], suffix="-gt")
+        self.hist_plot(None, self.data.data["y"], suffix="-gt", xlabel="Reco Z")
 
     def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix=""):
         if self.should_create_baseline_plots:
@@ -80,8 +80,17 @@ class Visualize:
 
         # scatter histogram
         fig, ax = plt.subplots(dpi=200)
-        h = ax.hist2d(y[:, 0].numpy(), y_hat[:, 0].numpy(),
+        y = y[:, 0].numpy()
+        y_hat = y_hat[:, 0].numpy()
+        h = ax.hist2d(y, y_hat,
                       200, norm=LogNorm(), cmap='jet')
+
+        ax.plot([], [], ' ', label=f"Num: {len(y)}")
+        ax.plot([], [], ' ', label=f"Mean x: {np.mean(y):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std x: {np.std(y):.{3}f}")
+        ax.plot([], [], ' ', label=f"Mean y: {np.mean(y_hat):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std y: {np.std(y_hat):.{3}f}")
+        ax.legend()
 
         cbar = fig.colorbar(h[3], ax=ax)
         cbar.set_label(r'$\log_{10}$ density of points')
@@ -97,10 +106,17 @@ class Visualize:
         self.get_tb_logger().experiment.add_image(
             f"z-plot{suffix}", img, self.module.current_epoch)
 
-    def hist_plot(self, y, y_hat, suffix=""):
+    def hist_plot(self, y, y_hat, suffix="", xlabel="Neuro Z"):
+        # todo adapt labels
         fig, ax = plt.subplots(dpi=200)
-        ax.hist(y_hat[:, 0].numpy(), bins=100)
-        ax.set(xlabel="Neuro Z")
+        y_hat = y_hat[:, 0].numpy()
+        ax.hist(y_hat, bins=100)
+        ax.plot([], [], ' ', label=f"Num: {len(y_hat)}")
+        ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
+        ax.legend()
+
+        ax.set(xlabel=xlabel)
         img = self.fig2buf2tensor(fig)
         self.get_tb_logger().experiment.add_image(
             f"z-hist{suffix}", img, self.module.current_epoch)
