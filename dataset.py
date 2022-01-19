@@ -134,7 +134,7 @@ class BelleIIBetter(Dataset):
             # only 36:37 if only z (out_dim=2)
             "y": torch.Tensor(dt[:, 36:36+out_dim]),
             "expert": torch.Tensor(dt[:, 6]),
-            # out_dim==2 -> -4:-3:2 out_dim==1 -> -4:-3:2
+            # out_dim==2 -> -4:-1:2 out_dim==1 -> -4:-3:2
             "y_hat_old": torch.Tensor(dt[:, -4:(-1 if out_dim == 2 else -3):2]),
         }
         self.logger.debug(

@@ -18,7 +18,7 @@ class Visualize:
         self.module = module
         # self.data = Subset(data, np.arange(len(data))[:40000])
         self.data = data
-        self.plots = [self.z_plot, self.hist_plot]
+        self.plots = [self.z_plot, self.hist_plot, self.diff_plot, self.std_plot]
 
         self.should_create_baseline_plots = True
 
@@ -84,7 +84,7 @@ class Visualize:
         y_hat = y_hat[:, 0].numpy()
         h = ax.hist2d(y, y_hat,
                       200, norm=LogNorm(), cmap='jet')
-
+        
         ax.plot([], [], ' ', label=f"Num: {len(y)}")
         ax.plot([], [], ' ', label=f"Mean x: {np.mean(y):.{3}f}")
         ax.plot([], [], ' ', label=f"Std x: {np.std(y):.{3}f}")
@@ -120,3 +120,42 @@ class Visualize:
         img = self.fig2buf2tensor(fig)
         self.get_tb_logger().experiment.add_image(
             f"z-hist{suffix}", img, self.module.current_epoch)
+    
+
+    def diff_plot(self, y, y_hat, suffix=""):
+        diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+        # entries, std, mean
+        fig, ax = plt.subplots(dpi=200)
+
+        ax.hist(diff, bins=100)
+        ax.plot([], [], ' ', label=f"Num: {len(diff)}")
+        ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+        ax.set(xlabel="z(Reco-Neuro)")
+        ax.legend()
+        img = self.fig2buf2tensor(fig)
+        self.get_tb_logger().experiment.add_image(
+            f"z-diff{suffix}", img, self.module.current_epoch)
+
+    def std_plot(self, y, y_hat, suffix=""):
+        z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+        bucket_len = 500
+        z_diff = sorted(z_diff)
+        # always take 20 around, and start at 10 and end at len()-10
+        stds = []
+        buck = []
+        half_bucket_len = int(bucket_len/2)
+        for i in range(len(z_diff))[half_bucket_len:-half_bucket_len]:
+            buck.append(z_diff[i])
+            stds.append(np.std(z_diff[i-half_bucket_len:i+half_bucket_len]))
+
+        fig, ax = plt.subplots(dpi=200)
+        ax.plot(buck, stds)
+        ax.set(xlabel="std z(Reco-Neuro)")
+        img = self.fig2buf2tensor(fig)
+        self.get_tb_logger().experiment.add_image(
+            f"z-std{suffix}", img, self.module.current_epoch)
+
+
+
+

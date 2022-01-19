@@ -29,7 +29,7 @@ class NeuroTrigger(pl.LightningModule):
         # self.model = BaselineModel(hparams.in_size, hparams.out_size)
         self.model = models[self.hparams.model](
             hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
-        self.model.apply(init_weights, self.hparams.act)
+        # self.model.apply(init_weights, self.hparams.act)
         self.file_logger = logging.getLogger()
 
         if self.expert == -1:
@@ -73,6 +73,9 @@ class NeuroTrigger(pl.LightningModule):
         loss_old = self.crit(y_hat_old, y)
         val_loss_vs_old_loss = loss/loss_old
         self.log("val_loss_vs_old_loss", val_loss_vs_old_loss)
+        val_z_diff_std = torch.std(y[:,0]-y_hat[:,0])
+        self.log("val_z_diff_std", val_z_diff_std)
+        self.log("val_z_diff_std_vs_old", val_z_diff_std/torch.std(y[:,0]-y_hat_old[:,0]))
 
         return y, y_hat, loss, val_loss_vs_old_loss
 

@@ -11,9 +11,9 @@
 - [x] act function into the config
 - [x] fix x axis of hist plot for gt data
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin
-- [ ] add diff hist plot -> z(Reco-Neuro)
-- [ ] add std(z(Reco-Neuro)) to tensorboard plot metrics and relative old vs new
-- [ ] add std bins plot
+- [x] add diff hist plot -> z(Reco-Neuro)
+- [x] add std(z(Reco-Neuro)) to tensorboard plot metrics and relative old vs new
+- [x] add std bins plot
 - [x] pin pytorch lightning version
 
 ## Version 0.2
