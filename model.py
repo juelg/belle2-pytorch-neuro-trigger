@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 
 
 def pad(f):
@@ -6,7 +7,7 @@ def pad(f):
 
 
 class BaselineModel(nn.Module):
-    def __init__(self, inp=27, out=2, act=nn.Tanh):
+    def __init__(self, inp: int = 27, out: int = 2, act=nn.Tanh):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(inp, 81),
@@ -15,12 +16,12 @@ class BaselineModel(nn.Module):
             act(),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
 
 class SimpleModel(nn.Module):
-    def __init__(self, inp=27, out=2, act=nn.ReLU):
+    def __init__(self, inp: int = 27, out: int = 2, act=nn.ReLU):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(inp, 50),
@@ -38,7 +39,7 @@ class SimpleModel(nn.Module):
             nn.Linear(10, out)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # get models dtype for conversion:
         # next(self.parameters()).dtype
         return self.net(x)

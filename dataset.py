@@ -1,3 +1,4 @@
+from ctypes import Union
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -21,11 +22,10 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 
-# TODO: add preprocessing
 class BelleII(Dataset):
+    # DEPRECATED since 0.3
     _cache_dir = ".cache"
     # _cache_file = "data.pt"
-
     def __init__(self, path, logger, in_ram=True) -> None:
         super().__init__()
         # with gzip.open(path) as f:
@@ -101,6 +101,7 @@ class BelleII(Dataset):
 
 
 class BelleIIExpert(BelleII):
+    # DEPCRATED since 0.3
     def __init__(self, path, expert) -> None:
         # only supports in ram
         super().__init__(path, in_ram=True)
@@ -119,13 +120,12 @@ class BelleIIExpert(BelleII):
         self.logger.debug(
             f"Dataset {self.path} expert #{self.expert} done init")
 
-
-
+# TODO: add preprocessing
 class BelleIIBetter(Dataset):
     _cache_dir = ".cache"
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
-    def __init__(self, path, logger, out_dim) -> None:
+    def __init__(self, path: str, logger: logging.Logger, out_dim: int) -> None:
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.path = path
@@ -170,11 +170,11 @@ class BelleIIBetter(Dataset):
     def __len__(self):
         return len(self.data["x"])
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
     @staticmethod
-    def scale(x, lower, upper, lower_new, upper_new):
+    def scale(x: Union[float, torch.Tensor], lower: float, upper: float, lower_new: float, upper_new: float):
         # linear scaling
         # first scale to [0, 1], then scale to new interval
         return ((x-lower) / (upper-lower)) * (upper_new-lower_new) + lower_new
@@ -197,7 +197,7 @@ class BelleIIBetter(Dataset):
 
 
 class BelleIIBetterExpert(BelleIIBetter):
-    def __init__(self, expert, *args, **kwargs) -> None:
+    def __init__(self, expert: int, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.expert = expert
         # filter out all samples that do not belong to this expert

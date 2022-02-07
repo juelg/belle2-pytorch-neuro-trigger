@@ -78,7 +78,7 @@ class ThreadLogFilter(logging.Filter):
     This filter only show log entries for specified thread name
     """
 
-    def __init__(self, thread_name, *args, **kwargs):
+    def __init__(self, thread_name: str, *args, **kwargs):
         logging.Filter.__init__(self, *args, **kwargs)
         self.thread_name = thread_name
 
@@ -108,7 +108,7 @@ for expert in experts:
 logger.info(f"Using config {config} in version {version}")
 
 
-def snap_source_state(log_folder):
+def snap_source_state(log_folder: str):
     # get git commit id
     os.system(
         f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
