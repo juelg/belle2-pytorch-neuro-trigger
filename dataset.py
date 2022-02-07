@@ -1,4 +1,3 @@
-from pkgutil import get_data
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -10,7 +9,6 @@ import os
 import logging
 import gzip
 import numpy as np
-from functools import lru_cache
 
 import hashlib
 
@@ -122,45 +120,11 @@ class BelleIIExpert(BelleII):
             f"Dataset {self.path} expert #{self.expert} done init")
 
 
-# def save(cache_dir, cache_file, data):
-#     if not Path(cache_dir).exists():
-#         Path(cache_dir).mkdir()
-#     with open(os.path.join(cache_dir, cache_file), "wb") as f:
-#         torch.save(data, f)
-
-# def load(cache_dir, cache_file):
-#     with open(os.path.join(cache_dir, cache_file), "rb") as f:
-#         return torch.load(f)
-
-# @lru_cache(maxsize=6)
-# def get_data(path, cache_dir, cache_file, out_dim):
-#     logger = logging.getLogger()
-#     if Path(os.path.join(cache_dir, cache_file)).exists():
-#         logger.debug("Already cached, loading it")
-#         print("already cached, loading it")
-#         return load(cache_dir, cache_file)
-#     else:
-#         with gzip.open(path, "rt") as f:
-#             dt = np.loadtxt(path, skiprows=2)
-#         # self.shared_data[path] = dt
-#         data =  {
-#             "x": torch.Tensor(dt[:, 9:36]),
-#             # only 36:37 if only z (out_dim=2)
-#             "y": torch.Tensor(dt[:, 36:36+out_dim]),
-#             "expert": torch.Tensor(dt[:, 6]),
-#             # out_dim==2 -> -4:-1:2 out_dim==1 -> -4:-3:2
-#             "y_hat_old": torch.Tensor(dt[:, -4:(-1 if out_dim == 2 else -3):2]),
-#             "idx": torch.arange(dt.shape[0])
-#         }
-#         save(cache_dir, cache_file, data)
-#         return data
 
 class BelleIIBetter(Dataset):
     _cache_dir = ".cache"
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
-    # shared_data = {}
-    # TODO: make data a static variable
     def __init__(self, path, logger, out_dim) -> None:
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
@@ -169,17 +133,12 @@ class BelleIIBetter(Dataset):
         self.logger = logger
         self.out_dim = out_dim
 
-        # if path in self.shared_data:
-        #     dt = self.shared_data[path]
-        #     self.data = self.get_data(dt)
-        #     print("used in ram")
         if Path(os.path.join(self._cache_dir, self._cache_file)).exists():
             self.logger.debug("Already cached, loading it")
             self.data = self.open()
         else:
             with gzip.open(path, "rt") as f:
                 dt = np.loadtxt(path, skiprows=2)
-            # self.shared_data[path] = dt
             self.data = {
                 "x": torch.Tensor(dt[:, 9:36]),
                 # only 36:37 if only z (out_dim=2)
@@ -192,7 +151,6 @@ class BelleIIBetter(Dataset):
 
             self.save()
 
-        # self.data = get_data(self.path, self._cache_dir, self._cache_dir, out_dim)
 
         self.logger.debug(
             f"Dataset {self.path} with length {len(self)} done init")
@@ -244,8 +202,6 @@ class BelleIIBetterExpert(BelleIIBetter):
         self.expert = expert
         # filter out all samples that do not belong to this expert
         # create index map
-        # keep = [idx for idx, i in enumerate(
-        #     self.data["expert"]) if i == self.expert]
         keep = torch.where(self.data["expert"] == self.expert)
         # overwrite in order to get back memory from unused data
         self.data = {key: val[keep] for key, val in self.data.items()}
