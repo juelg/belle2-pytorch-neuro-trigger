@@ -1,4 +1,6 @@
 from ctypes import Union
+import json
+import os
 from typing import Dict, Optional, List, Tuple
 import pytorch_lightning as pl
 import torch
@@ -21,9 +23,10 @@ def init_weights(m: torch.Module, act: str):
 
 class NeuroTrigger(pl.LightningModule):
 
-    def __init__(self, hparams: EasyDict, data: BelleIIBetter, expert: int = -1):
+    def __init__(self, hparams: EasyDict, data: BelleIIBetter, log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
         self.expert = expert
+        self.log_path = log_path
         self.hparams.update(self.extract_expert_hparams(hparams))
         self.model = models[self.hparams.model](
             hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
@@ -77,6 +80,36 @@ class NeuroTrigger(pl.LightningModule):
         self.log("val_z_diff_std_vs_old", val_z_diff_std/torch.std(y[:,0]-y_hat_old[:,0]))
 
         return y, y_hat, loss, val_loss_vs_old_loss
+
+    def validate(self, mode:str = "val"):
+        assert self.log_path is not None
+        # data = {"train": self.train_dataloader, "eval": self.val_dataloader, "test": self.test_dataloader}[mode]()
+        mode = {"train": 0, "val": 1, "test": 2}[mode]
+        # output dataset -> no, do this for all experts outside of the training
+        # create plots
+        outputs = []
+        with torch.no_grad():
+            d = DataLoader(self.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+            for i in d:
+                x, y, y_hat_old = i[0], i[1], i[2]
+                y_hat = self.model(x)
+                outputs.append((y, y_hat, y_hat_old))
+        pred_data = torch.cat(outputs)
+
+        loss = self.crit(pred_data[:,0], pred_data[:,1])
+        loss_old = self.crit(pred_data[:,0], pred_data[:,2])
+        val_loss_vs_old_loss = loss/loss_old
+        val_z_diff_std = torch.std(pred_data[:,0,0]-pred_data[:,1,0])
+        to_save = {"loss": loss.mean(), "loss_old": loss_old.mean(),
+                    "val_loss_vs_old_loss": val_loss_vs_old_loss.mean(),
+                    "val_z_diff_std": val_z_diff_std.mean()}
+        # output final scores in json
+        with open(os.path.join(self.log_path, "result.csv")) as f:
+            json.dump(to_save, f)
+
+        self.visualize.create_plots(
+                pred_data[:,0], pred_data[:,1], save=os.path.join(self.log_path, "post_training_plots"), create_baseline_plots=True)
+
 
     def test_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
         x, y = batch[0], batch[1]

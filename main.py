@@ -8,6 +8,8 @@ from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
+from utils import ThreadLogFilter, create_dataset_with_predictions, snap_source_state
+
 debug = False
 config = "baseline_v1"
 base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
@@ -33,6 +35,17 @@ else:
     val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
     test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 
+def fit(trainer_module, logger):
+    try:
+        # train
+        logger.info(f"Expert {trainer_module[1].expert} start training.")
+        trainer_module[0].fit(trainer_module[1])
+    except ValueError:
+        # needed to avoid signal error from pytorch lightning in threads
+        logger.info(f"Expert {trainer_module[1].expert} has finished training.")
+    # create plots
+    trainer_module[1].validate(mode="val")
+    logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
 
 data = (train, val, test)
@@ -47,7 +60,6 @@ version = max([int(str(i).split("_")[-1])
               for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
 
 log_folder = os.path.join(base_log, config, f"version_{version}")
-# todo maybe create folder
 if not Path(log_folder).exists():
     Path(log_folder).mkdir(parents=True)
 
@@ -73,18 +85,6 @@ logging.getLogger('PIL.PngImagePlugin').disabled = True
 logging.getLogger('h5py._conv').disabled = True
 
 
-class ThreadLogFilter(logging.Filter):
-    """
-    This filter only show log entries for specified thread name
-    """
-
-    def __init__(self, thread_name: str, *args, **kwargs):
-        logging.Filter.__init__(self, *args, **kwargs)
-        self.thread_name = thread_name
-
-    def filter(self, record):
-        return record.threadName == self.thread_name
-
 
 # general logger which logs everything
 fh = logging.FileHandler(os.path.join(log_folder, f"app.log"), mode="w")
@@ -108,16 +108,8 @@ for expert in experts:
 logger.info(f"Using config {config} in version {version}")
 
 
-def snap_source_state(log_folder: str):
-    # get git commit id
-    os.system(
-        f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
-    # get git diff
-    os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
-
 
 if __name__ == "__main__":
-
     # save git commit and git diff in file
     snap_source_state(log_folder)
 
@@ -139,7 +131,7 @@ if __name__ == "__main__":
         callbacks = [early_stop_callback, model_checkpoint]
         # callbacks = [model_checkpoint]
 
-        pl_module = NeuroTrigger(hparams, data, expert=expert)
+        pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
         trainer = pl.Trainer(
             logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
                         CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv")],
@@ -161,18 +153,21 @@ if __name__ == "__main__":
         )
         trainers_modules.append((trainer, pl_module))
 
-    def fit(trainer_module):
-        try:
-            trainer_module[0].fit(trainer_module[1])
-        except ValueError:
-            # needed to avoid signal error from pytorch lightning in threads
-            logger.info(f"Expert {trainer_module[1].expert} has finished training.")
 
     if len(experts) == 1:
-        fit(trainer_module=trainers_modules[0])
+        fit(trainer_module=trainers_modules[0], logger=logger)
     else:
+        threads = []
         for trainer_module, expert in zip(trainers_modules, experts_str):
             t = threading.Thread(target=fit,
                                  name=expert,
-                                 args=[trainer_module])
+                                 args=[trainer_module, logger])
             t.start()
+            threads.append(t)
+    # wait for all threads to finish training
+    if len(experts) != 1:
+        for t in threads:
+            t.join()
+    # create dataset with predictions
+    create_dataset_with_predictions([i[1] for i in trainers_modules], path=log_folder, mode="val")
+

@@ -1,1 +1,50 @@
-    
+import logging
+import os
+from torch.utils.data import DataLoader
+import numpy as np
+
+import torch    
+
+class ThreadLogFilter(logging.Filter):
+    """
+    This filter only show log entries for specified thread name
+    """
+
+    def __init__(self, thread_name: str, *args, **kwargs):
+        logging.Filter.__init__(self, *args, **kwargs)
+        self.thread_name = thread_name
+
+    def filter(self, record):
+        return record.threadName == self.thread_name
+
+
+def snap_source_state(log_folder: str):
+    # get git commit id
+    os.system(
+        f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
+    # get git diff
+    os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
+
+
+def create_dataset_with_predictions(expert_pl_modules, path, mode="val"):
+    # TODO do this with the best checkpoint
+    mode = {"train": 0, "val": 1, "test": 2}[mode]
+    dataset = []
+    for expert in expert_pl_modules:
+        expert.eval()
+        with torch.no_grad():
+            d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+            for i in d:
+                x, y, y_hat_old, idx = i
+                y_hat = expert(x)
+                dataset.append((idx, y_hat))
+    idxs = torch.cat([i[0] for i in dataset])
+    data = torch.cat([i[1] for i in dataset])
+
+    data_arr = expert.data[mode].get_data_array()
+    new_arr = np.zeros((data_arr.shape[0], data_arr.shape[1] + 2))
+    new_arr[:,:-2] = data_arr
+    for i in range(len(data)):
+        new_arr[idxs[i],-2:] = data[i]
+
+    np.savetxt(os.path.join(path, f"pred_data_random{mode}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))

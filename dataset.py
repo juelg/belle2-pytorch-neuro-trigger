@@ -137,8 +137,7 @@ class BelleIIBetter(Dataset):
             self.logger.debug("Already cached, loading it")
             self.data = self.open()
         else:
-            with gzip.open(path, "rt") as f:
-                dt = np.loadtxt(path, skiprows=2)
+            dt = self.get_data_array()
             self.data = {
                 "x": torch.Tensor(dt[:, 9:36]),
                 # only 36:37 if only z (out_dim=2)
@@ -155,6 +154,13 @@ class BelleIIBetter(Dataset):
         self.logger.debug(
             f"Dataset {self.path} with length {len(self)} done init")
         print("done")
+
+    def get_data_array(self):
+        # also used in utils
+        with gzip.open(self.path, "rt") as f:
+            dt = np.loadtxt(self.path, skiprows=2)
+        return dt
+
 
     def save(self):
         if not Path(self._cache_dir).exists():

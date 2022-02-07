@@ -81,11 +81,11 @@ class Visualize:
                 Path(save).mkdir(parents=True)
             fig.savefig(os.path.join(save, f"{name}.png"), dpi=200, bbox_inches='tight')
 
-    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None):
-        if (self.module.current_epoch % 10) != 0:
+    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None, create_baseline_plots=False):
+        if (self.module.current_epoch % 10) != 0 and save is None:
             return
         self.module.file_logger.debug(f"Creating plots for expert {self.module.expert}")
-        if self.should_create_baseline_plots:
+        if self.should_create_baseline_plots or create_baseline_plots:
             # create plot once for old nn data
             self.should_create_baseline_plots = False
             self.create_baseline_plots(save=save)
