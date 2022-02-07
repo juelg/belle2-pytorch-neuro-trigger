@@ -31,21 +31,6 @@ class Visualize:
         self.plots = [self.z_plot, self.hist_plot, self.diff_plot, self.std_plot, self.shallow_diff_plot]
 
         self.should_create_baseline_plots = True
-        # if folder is none than we try to log tensorboard
-        self._folder = None
-        self.folder = folder
-
-    @property
-    def folder(self):
-        return self._folder
-
-    @folder.setter
-    def folder(self, value):
-        self._folder = value
-        if self.folder and not Path(self.folder).exists():
-            Path(self.folder).mkdir(parents=True)
-
-
 
 
     def forward(self) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -77,47 +62,38 @@ class Visualize:
         buf.seek(0)
         return self.buf2tensor(buf)
 
-    def create_baseline_plots(self):
+    def create_baseline_plots(self, save=None):
         self.create_plots(
-            self.data.data["y"], self.data.data["y_hat_old"], suffix="-old")
+            self.data.data["y"], self.data.data["y_hat_old"], suffix="-old", save=save)
         y = self.data.data["y"][:self.MAX_SAMPLES]
         y = BelleIIBetter.to_physics(y)
-        self.hist_plot(None, y, suffix="-gt", xlabel="Reco Z")
+        self.hist_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
 
-    def plot(self, name, fig):
-        if not self.folder:
+    def plot(self, name, fig, save=None):
+        if not save:
             # put figure to tensorboard
             img = self.fig2buf2tensor(fig)
             self.get_tb_logger().experiment.add_image(
                 name, img, self.module.current_epoch)
         else:
             # save figure to folder
-            fig.savefig(os.path.join(self.folder, f"{name}.png"), dpi=200, bbox_inches='tight')
+            if not Path(save).exists():
+                Path(save).mkdir(parents=True)
+            fig.savefig(os.path.join(save, f"{name}.png"), dpi=200, bbox_inches='tight')
 
-    # def plot(self, fig, name, option="tensorboard"):
-    #     if option=="tensorboard":
-    #         img = self.fig2buf2tensor(fig)
-    #         self.get_tb_logger().experiment.add_image(
-    #             name, img, self.module.current_epoch)
-    #     elif option == "show":
-    #         plt.show()
-    #     elif option == "save":
-    #         # TODO bound tight usw, special path
-    #         plt.savefig(f"{name}.png")
-
-    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix=""):
+    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None):
         if (self.module.current_epoch % 10) != 0:
             return
         self.module.file_logger.debug(f"Creating plots for expert {self.module.expert}")
         if self.should_create_baseline_plots:
             # create plot once for old nn data
             self.should_create_baseline_plots = False
-            self.create_baseline_plots()
+            self.create_baseline_plots(save=save)
 
         y, y_hat = y.cpu()[:self.MAX_SAMPLES], y_hat.cpu()[:self.MAX_SAMPLES]
         y, y_hat = BelleIIBetter.to_physics(y), BelleIIBetter.to_physics(y_hat)
         for plot_f in self.plots:
-            plot_f(y, y_hat, suffix)
+            plot_f(y, y_hat, suffix, save=save)
         plt.close('all')
 
     def get_tb_logger(self):
@@ -129,7 +105,7 @@ class Visualize:
         raise RuntimeError("There must be a TensorBoardLogger within the loggers")
 
 
-    def z_plot(self, y, y_hat, suffix=""):
+    def z_plot(self, y, y_hat, suffix="", save=None):
         # scatter histogram
         fig, ax = plt.subplots(dpi=200)
         y = y[:, 0].numpy()
@@ -154,9 +130,9 @@ class Visualize:
         ax.set_xlim(BelleIIBetter.Z_SCALING) # [-100, 100]
         ax.set_ylim(BelleIIBetter.Z_SCALING)
 
-        self.plot(f"z-plot{suffix}", fig)
+        self.plot(f"z-plot{suffix}", fig, save=save)
 
-    def hist_plot(self, y, y_hat, suffix="", xlabel="Neuro Z"):
+    def hist_plot(self, y, y_hat, suffix="", xlabel="Neuro Z", save=None):
         # todo adapt labels
         fig, ax = plt.subplots(dpi=200)
         y_hat = y_hat[:, 0].numpy()
@@ -166,10 +142,10 @@ class Visualize:
         ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
         ax.legend()
         ax.set(xlabel=xlabel)
-        self.plot(f"z-hist{suffix}", fig)
+        self.plot(f"z-hist{suffix}", fig, save=save)
     
 
-    def diff_plot(self, y, y_hat, suffix=""):
+    def diff_plot(self, y, y_hat, suffix="", save=None):
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         # entries, std, mean
         fig, ax = plt.subplots(dpi=200)
@@ -182,10 +158,10 @@ class Visualize:
         ax.set_xlim(BelleIIBetter.Z_SCALING)
         ax.legend()
         ax.grid()
-        self.plot(f"z-diff{suffix}", fig)
+        self.plot(f"z-diff{suffix}", fig, save=save)
 
 
-    def shallow_diff_plot(self, y, y_hat, suffix=""):
+    def shallow_diff_plot(self, y, y_hat, suffix="", save=None):
         # +/-1 diff plot -> just limit reco z on pm 1cm
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
@@ -199,10 +175,10 @@ class Visualize:
         ax.set(xlabel="z(Reco-Neuro)")
         ax.legend()
         ax.grid()
-        self.plot(f"z-shallow-diff{suffix}", fig)
+        self.plot(f"z-shallow-diff{suffix}", fig, save=save)
 
 
-    def std_plot(self, y, y_hat, suffix=""):
+    def std_plot(self, y, y_hat, suffix="", save=None):
         y, y_hat = y[:50000], y_hat[:50000]
         # TODO: dont use sorted and just plot x'es or dots
         z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
@@ -221,4 +197,4 @@ class Visualize:
         ax.grid()
         ax.set(xlabel="reco z")
         ax.set(ylabel="std (reco-neuro)")
-        self.plot(f"z-std{suffix}", fig)
+        self.plot(f"z-std{suffix}", fig, save=save)
