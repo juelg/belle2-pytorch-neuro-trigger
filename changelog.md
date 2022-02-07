@@ -2,14 +2,13 @@
 
 ## Version 0.4
 - [ ] baseline model v2 with BN and Relu
+- [ ] add gradient clipping
 - [ ] add categories in config
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [ ] train with different batchsizes and learning rates per expert
-- [ ] reimplement dataset caching
 
 
 ## Version 0.3
-- [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
 - [x] add statistical values such as mean and std to the plots (in form of legends)
 - [x] implement rprop, generalize optimizers and put them into config
 - [x] fix weight init
@@ -20,9 +19,12 @@
 - [x] add std bins plot
 - [x] pin pytorch lightning version
 - [x] rescale z/theta outputs to represent real physical values
+- [x] reimplement dataset caching
+- [x] in the end of the training create weights, predication dataset, plots as pngs, and maybe evaluate test?
 - [ ] plot creation for already trained weights -> write cli where weights are loaded
-- [ ] in the end of the training create weights, predication dataset, plots as pngs, and maybe evaluate test?
 - [ ] only train on the first reco track of a track
+- [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
+- [ ] distributions into the same plot to make them more coparable
 
 ## Version 0.2
 - [x] description in experiment log
