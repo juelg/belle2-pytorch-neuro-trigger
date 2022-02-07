@@ -1,3 +1,4 @@
+from ctypes import Union
 from typing import Dict, Optional, List, Tuple
 import pytorch_lightning as pl
 import torch
@@ -12,21 +13,18 @@ import copy
 from __init__ import crits, models, act_fun
 import numpy as np
 
-def init_weights(m, act):
+def init_weights(m: torch.Module, act: str):
     if isinstance(m, torch.nn.Linear):
         torch.nn.init.xavier_uniform_(m.weight, torch.nn.init.calculate_gain(act))
         # leave bias as it is
 
 
-
 class NeuroTrigger(pl.LightningModule):
 
-    def __init__(self, hparams: EasyDict, data, expert=-1):
+    def __init__(self, hparams: EasyDict, data: BelleIIBetter, expert: int = -1):
         super().__init__()
         self.expert = expert
         self.hparams.update(self.extract_expert_hparams(hparams))
-        # self.model = SimpleModel(hparams.in_size, hparams.out_size)
-        # self.model = BaselineModel(hparams.in_size, hparams.out_size)
         self.model = models[self.hparams.model](
             hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
         # self.model.apply(init_weights, self.hparams.act)
@@ -39,22 +37,23 @@ class NeuroTrigger(pl.LightningModule):
             self.data = [BelleIIBetterExpert(self.expert,
                                              data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
 
-        self.crit = crits[self.hparams.loss]  # torch.nn.MSELoss()
+        # to see model and crit have a look into the dict defined in __init__.py
+        self.crit = crits[self.hparams.loss]
         self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug(
             f"DONE init expert {self.expert} with loss '{self.hparams.loss}' and model '{self.hparams.model}'")
 
-    def extract_expert_hparams(self, hparams):
+    def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]):
         expert_hparams = copy.deepcopy(hparams)
         new_expert_hparams = hparams.get(f"expert_{self.expert}", {})
         expert_hparams.update(new_expert_hparams)
         return expert_hparams
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return self.model(x)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         # TODO set more weight on z for learning and the loss function
@@ -62,7 +61,7 @@ class NeuroTrigger(pl.LightningModule):
         self.log("loss", loss)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
@@ -79,31 +78,32 @@ class NeuroTrigger(pl.LightningModule):
 
         return y, y_hat, loss, val_loss_vs_old_loss
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
         self.log("test_loss", loss)
 
-    def validation_epoch_end(self, outputs):
+    def validation_epoch_end(self, outputs: List[Tuple[torch.Tensor]]):
+        # outputs are a list of the tuples that have been returned by the validation
         self.visualize.create_plots(
             torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
         self.file_logger.info(
             f"expert_{self.expert}: epoch #{self.current_epoch} finished with val {np.mean(([i[2] for i in outputs])):.{3}f} and {np.mean(([i[3] for i in outputs])):.{3}f} vs old")
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                           drop_last=True, pin_memory=True, shuffle=True)
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader:
         return DataLoader(self.data[1], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                           drop_last=True, pin_memory=True)
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader:
         return DataLoader(self.data[2], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
                           drop_last=True, pin_memory=True)
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> torch.optim.Optimizer:
         # definition of supported optimizers
         if self.hparams.optim == "Adam":
             return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
