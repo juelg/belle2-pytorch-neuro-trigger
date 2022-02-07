@@ -106,9 +106,9 @@ class Visualize:
     #         plt.savefig(f"{name}.png")
 
     def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix=""):
-        # TODO add log here to see when stuff is plotted
         if (self.module.current_epoch % 10) != 0:
             return
+        self.module.file_logger.debug(f"Creating plots for expert {self.module.expert}")
         if self.should_create_baseline_plots:
             # create plot once for old nn data
             self.should_create_baseline_plots = False
@@ -129,9 +129,7 @@ class Visualize:
         raise RuntimeError("There must be a TensorBoardLogger within the loggers")
 
 
-
     def z_plot(self, y, y_hat, suffix=""):
-
         # scatter histogram
         fig, ax = plt.subplots(dpi=200)
         y = y[:, 0].numpy()
@@ -156,9 +154,6 @@ class Visualize:
         ax.set_xlim(BelleIIBetter.Z_SCALING) # [-100, 100]
         ax.set_ylim(BelleIIBetter.Z_SCALING)
 
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-plot{suffix}", img, self.module.current_epoch)
         self.plot(f"z-plot{suffix}", fig)
 
     def hist_plot(self, y, y_hat, suffix="", xlabel="Neuro Z"):
@@ -170,11 +165,7 @@ class Visualize:
         ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
         ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
         ax.legend()
-
-        # ax.set(xlabel=xlabel)
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-hist{suffix}", img, self.module.current_epoch)
+        ax.set(xlabel=xlabel)
         self.plot(f"z-hist{suffix}", fig)
     
 
@@ -182,7 +173,6 @@ class Visualize:
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         # entries, std, mean
         fig, ax = plt.subplots(dpi=200)
-
         ax.hist(diff, bins=100)
         ax.plot([], [], ' ', label=f"Num: {len(diff)}")
         ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
@@ -192,10 +182,8 @@ class Visualize:
         ax.set_xlim(BelleIIBetter.Z_SCALING)
         ax.legend()
         ax.grid()
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-diff{suffix}", img, self.module.current_epoch)
         self.plot(f"z-diff{suffix}", fig)
+
 
     def shallow_diff_plot(self, y, y_hat, suffix=""):
         # +/-1 diff plot -> just limit reco z on pm 1cm
@@ -211,85 +199,19 @@ class Visualize:
         ax.set(xlabel="z(Reco-Neuro)")
         ax.legend()
         ax.grid()
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-shallow-diff{suffix}", img, self.module.current_epoch)
         self.plot(f"z-shallow-diff{suffix}", fig)
-
-    # TODO, how does this work
-    # shwo picture
-    def std_plot_old(self, y, y_hat, suffix=""):
-        z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        bucket_len = 500
-        # could also be solved with zip
-        z_sorted = np.zeros((len(z_diff), 2))
-        z_sorted[:,0] = z_diff
-        z_sorted[:,1] = y[:,0]
-        z_sorted = np.array(sorted(z_sorted, key=lambda x: x[0]))
-        # always take 20 around, and start at 10 and end at len()-10
-        stds = []
-        buck = []
-        # half_bucket_len = int(bucket_len/2)
-        # for i in range(len(z_sorted))[half_bucket_len:-half_bucket_len]:
-        #     buck.append(z_sorted[i,1])
-        #     stds.append(scipy.stats.mstats.trimmed_std(z_sorted[i-half_bucket_len:i+half_bucket_len][0], limits=(0.05, 0.05)))
-
-        z_sorted = np.array(sorted(z_sorted, key=lambda x: x[1]))
-        for diff, y_ in z_sorted:
-            buck.append(y)
-            stds.append(np.std(z_diff[(y_-1 < y[:,0]) & (y[:,0] < y_+1)]))
-
-        # xy = list(zip(buck, stds))
-        # xy = sorted(xy, key=lambda x:x[0])
-        # xy = np.array(xy)
-
-        fig, ax = plt.subplots(dpi=200)
-        # ax.plot(xy[:,0], xy[:,1])
-        ax.plot(buck, stds)
-        ax.plot([], [], ' ', label=f"Num: {len(z_diff)}")
-        ax.plot([], [], ' ', label=f"Min: {min(stds):.{3}f}")
-        ax.plot([], [], ' ', label=f"Bucket len: {bucket_len}")
-        ax.legend()
-        ax.grid()
-        ax.set(xlabel="std z(Reco-Neuro)")
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-std{suffix}", img, self.module.current_epoch)
-        self.plot(f"z-std{suffix}", fig)
-
-
-
 
 
     def std_plot(self, y, y_hat, suffix=""):
         y, y_hat = y[:50000], y_hat[:50000]
         # TODO: dont use sorted and just plot x'es or dots
         z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        # stds = []
-        # buck = []
-        y_sorted = np.sort(y[:,0]) # np.array(sorted(y[:,0]))
+        y_sorted = np.sort(y[:,0])
         y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
 
         def f(yi):
             return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
-
-        # import time
-        # t1 = time.time()
         stds = np.vectorize(f)(y_sorted[::100])
-        # print(time.time()-t1)
-
-
-        # t1 = time.time()
-        # for yi in y_sorted:
-        #     # buck.append(yi)
-        #     stds.append(np.std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)])) #, limits=(0.05, 0.05)))
-        #     # scipy.stats.mstats.trimmed_std
-        # print(time.time()-t1)
-
-        # t1 = time.time()
-        # with multiprocessing.Pool(64) as p:
-        #     asdf = p.map(partial(f2, z_diff, y), y_sorted)
-        # print(time.time()-t1)
 
         fig, ax = plt.subplots(dpi=200)
         ax.plot(y_sorted[::100], stds)
@@ -299,47 +221,4 @@ class Visualize:
         ax.grid()
         ax.set(xlabel="reco z")
         ax.set(ylabel="std (reco-neuro)")
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-std{suffix}", img, self.module.current_epoch)
         self.plot(f"z-std{suffix}", fig)
-
-    def std_plot2(self, y, y_hat, suffix=""):
-        z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        bucket_len = 5000
-        stds = []
-        buck = []
-        # y_sorted = np.array(sorted(y[:,0]))
-        # y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
-
-        y_sorted = np.zeros((len(z_diff), 2))
-        y_sorted[:,0] = z_diff
-        y_sorted[:,1] = y[:,0]
-        y_sorted = np.array(sorted(y_sorted, key=lambda x: x[1]))
-
-        # for yi in y_sorted:
-        #     buck.append(yi)
-        #     stds.append(np.std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)]))
-
-        half_bucket_len = int(bucket_len/2)
-        for i in range(len(y_sorted))[half_bucket_len:-half_bucket_len]:
-            buck.append(y_sorted[i][1])
-            stds.append(scipy.stats.mstats.trimmed_std(y_sorted[i-half_bucket_len:i+half_bucket_len][0], limits=(0.05, 0.05)))
-
-        fig, ax = plt.subplots(dpi=200)
-        ax.plot(buck, stds)
-        ax.plot([], [], ' ', label=f"Num: {len(z_diff)}")
-        ax.plot([], [], ' ', label=f"Min: {min(stds):.{3}f}")
-        ax.legend()
-        ax.grid()
-        ax.set(xlabel="reco z")
-        ax.set(ylabel="std (reco-neuro)")
-        # img = self.fig2buf2tensor(fig)
-        # self.get_tb_logger().experiment.add_image(
-        #     f"z-std2{suffix}", img, self.module.current_epoch)
-        self.plot(f"z-std2{suffix}", fig)
-
-
-
-def f2(z_diff, y, yi):
-    return np.std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)]) #, limits=(0.05, 0.05)))
