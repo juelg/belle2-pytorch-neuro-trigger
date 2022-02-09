@@ -49,9 +49,13 @@ class NeuroTrigger(pl.LightningModule):
 
     def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]):
         expert_hparams = copy.deepcopy(hparams)
-        new_expert_hparams = hparams.get(f"expert_{self.expert}", {})
+        new_expert_hparams = hparams.get(self.exp_str, {})
         expert_hparams.update(new_expert_hparams)
         return expert_hparams
+
+    @property
+    def exp_str(self):
+        return f"expert_{self.expert}"
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
@@ -81,8 +85,7 @@ class NeuroTrigger(pl.LightningModule):
 
         return y, y_hat, loss, val_loss_vs_old_loss
 
-    def validate(self, mode:str = "val"):
-        assert self.log_path is not None
+    def validate(self, path: str, mode: str = "val"):
         # data = {"train": self.train_dataloader, "eval": self.val_dataloader, "test": self.test_dataloader}[mode]()
         mode = {"train": 0, "val": 1, "test": 2}[mode]
         # output dataset -> no, do this for all experts outside of the training
@@ -104,11 +107,11 @@ class NeuroTrigger(pl.LightningModule):
                     "val_loss_vs_old_loss": val_loss_vs_old_loss.mean(),
                     "val_z_diff_std": val_z_diff_std.mean()}
         # output final scores in json
-        with open(os.path.join(self.log_path, "result.csv")) as f:
+        with open(os.path.join(path, "result.csv")) as f:
             json.dump(to_save, f)
 
         self.visualize.create_plots(
-                pred_data[:,0], pred_data[:,1], save=os.path.join(self.log_path, "post_training_plots"), create_baseline_plots=True)
+                pred_data[:,0], pred_data[:,1], save=os.path.join(path, "post_training_plots"), create_baseline_plots=True)
 
 
     def test_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
@@ -122,7 +125,7 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize.create_plots(
             torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
         self.file_logger.info(
-            f"expert_{self.expert}: epoch #{self.current_epoch} finished with val {np.mean(([i[2] for i in outputs])):.{3}f} and {np.mean(([i[3] for i in outputs])):.{3}f} vs old")
+            f"{self.exp_str}: epoch #{self.current_epoch} finished with val {np.mean(([i[2] for i in outputs])):.{3}f} and {np.mean(([i[3] for i in outputs])):.{3}f} vs old")
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,

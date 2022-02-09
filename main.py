@@ -7,10 +7,11 @@ from configs import get_hyperpar_by_name
 from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
+import torch
 
-from utils import ThreadLogFilter, create_dataset_with_predictions, snap_source_state
+from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, snap_source_state
 
-debug = False
+debug = True
 config = "baseline_v1"
 base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
 gpu_idx = 0
@@ -43,8 +44,15 @@ def fit(trainer_module, logger):
     except ValueError:
         # needed to avoid signal error from pytorch lightning in threads
         logger.info(f"Expert {trainer_module[1].expert} has finished training.")
-    # create plots
-    trainer_module[1].validate(mode="val")
+
+    # load the best weights for evaluation
+    ckpt_path = os.path.join(trainer_module[1].log_path, "ckpts")
+    best_ckpt = [i for i in os.listdir(ckpt_path) if i.startswith("epoch")][0]
+    # trainer_module[1].load_from_checkpoint(best_ckpt)
+    trainer_module[1].load_state_dict(torch.load(best_ckpt)["from_checkpoint"])
+
+    # create eval plots
+    trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
 
@@ -169,5 +177,6 @@ if __name__ == "__main__":
         for t in threads:
             t.join()
     # create dataset with predictions
-    create_dataset_with_predictions([i[1] for i in trainers_modules], path=log_folder, mode="val")
+    create_dataset_with_predictions([i[1] for i in trainers_modules], path=log_folder, mode="test")
+    expert_weights_json([i[1] for i in trainers_modules], path=log_folder)
 

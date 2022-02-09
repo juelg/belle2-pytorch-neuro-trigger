@@ -1,5 +1,9 @@
+from collections import OrderedDict
+import json
 import logging
 import os
+from typing import List
+from pytorch_lightning import LightningModule
 from torch.utils.data import DataLoader
 import numpy as np
 
@@ -26,7 +30,7 @@ def snap_source_state(log_folder: str):
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
 
-def create_dataset_with_predictions(expert_pl_modules, path, mode="val"):
+def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path, mode="val"):
     # TODO do this with the best checkpoint
     mode = {"train": 0, "val": 1, "test": 2}[mode]
     dataset = []
@@ -48,3 +52,20 @@ def create_dataset_with_predictions(expert_pl_modules, path, mode="val"):
         new_arr[idxs[i],-2:] = data[i]
 
     np.savetxt(os.path.join(path, f"pred_data_random{mode}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+
+
+def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
+    exps = OrderedDict()
+    for expert_module in expert_pl_modules:
+        desc = {}
+        weights = {}
+        for key, value in expert_module.state_dict().items():
+            print(value.shape)
+            desc[key] = value.shape
+            weights[key] = value.tolist()
+
+        exps[expert_module.exp_str] = {"shapes": desc, "weights": weights}
+
+    with open(os.path.join(path, "weights.json"), "w") as f:
+        json.dump(exps, f)
+

@@ -6,6 +6,7 @@
 - [ ] add categories in config
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [ ] train with different batchsizes and learning rates per expert
+- [ ] write readme page
 
 
 ## Version 0.3
@@ -21,6 +22,8 @@
 - [x] rescale z/theta outputs to represent real physical values
 - [x] reimplement dataset caching
 - [x] in the end of the training create weights, predication dataset, plots as pngs, and maybe evaluate test?
+- [x] validate with best trained data
+- [x] export (the best) weights in the end of the training
 - [ ] plot creation for already trained weights -> write cli where weights are loaded
 - [ ] only train on the first reco track of a track
 - [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
