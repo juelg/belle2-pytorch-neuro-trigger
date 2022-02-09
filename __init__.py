@@ -15,10 +15,11 @@ models = {
 }
 
 act_fun = {
-    "tanh": torch.nn.Tanh,
-    "relu": torch.nn.ReLU,
-    "sigmoid": torch.nn.Sigmoid,
-    "leaky_relu": torch.nn.LeakyReLU,
-    "selu": torch.nn.SELU,
+    "tanh": torch.nn.Tanh(),
+    "tanh/2": lambda x: torch.functional.tanh(x/2),
+    "relu": torch.nn.ReLU(),
+    "sigmoid": torch.nn.Sigmoid(),
+    "leaky_relu": torch.nn.LeakyReLU(),
+    "selu": torch.nn.SELU(),
 }
 

@@ -7,13 +7,15 @@ def pad(f):
 
 
 class BaselineModel(nn.Module):
-    def __init__(self, inp: int = 27, out: int = 2, act=nn.Tanh):
+    def __init__(self, inp: int = 27, out: int = 2, act=None):
         super().__init__()
+        if not act:
+            act = nn.Tanh()
         self.net = nn.Sequential(
             nn.Linear(inp, 81),
-            act(),
+            act,
             nn.Linear(81, out),
-            act(),
+            act,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -21,21 +23,23 @@ class BaselineModel(nn.Module):
 
 
 class SimpleModel(nn.Module):
-    def __init__(self, inp: int = 27, out: int = 2, act=nn.ReLU):
+    def __init__(self, inp: int = 27, out: int = 2, act=None):
         super().__init__()
+        if not act:
+            act = nn.ReLU()
         self.net = nn.Sequential(
             nn.Linear(inp, 50),
             nn.BatchNorm1d(50),
-            act(),
+            act,
             nn.Linear(50, 100),
             nn.BatchNorm1d(100),
-            act(),
+            act,
             nn.Linear(100, 50),
             nn.BatchNorm1d(50),
-            act(),
+            act,
             nn.Linear(50, 10),
             nn.BatchNorm1d(10),
-            act(),
+            act,
             nn.Linear(10, out)
         )
 

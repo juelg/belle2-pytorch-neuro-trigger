@@ -2,6 +2,11 @@ from easydict import EasyDict
 import copy
 
 configs = {
+    "baseline_v2": {
+        "extends": "baseline_v2",
+        "description": "Baseline arch with tanh/2",
+        "act": "tanh/2",
+    },
 
     "simple_model_v1": {
         "extends": "baseline_v1",
