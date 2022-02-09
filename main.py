@@ -11,8 +11,8 @@ import torch
 
 from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, snap_source_state
 
-debug = True
-config = "baseline_v1"
+debug = False
+config = "baseline_v2"
 base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
 gpu_idx = 0
 enable_progress_bar = False

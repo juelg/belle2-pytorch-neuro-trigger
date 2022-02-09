@@ -3,6 +3,14 @@ __version__ = 0.3
 import torch
 import model
 
+class LambdaModule(torch.nn.Module):
+    def __init__(self, f) -> None:
+        super().__init__()
+        self.f = f
+
+    def forward(self, x):
+        return self.f(x)
+
 
 crits = {
     "MSELoss": torch.nn.MSELoss()
@@ -16,7 +24,7 @@ models = {
 
 act_fun = {
     "tanh": torch.nn.Tanh(),
-    "tanh/2": lambda x: torch.functional.tanh(x/2),
+    "tanh/2": LambdaModule(lambda x: torch.nn.Tanh()(x/2)),
     "relu": torch.nn.ReLU(),
     "sigmoid": torch.nn.Sigmoid(),
     "leaky_relu": torch.nn.LeakyReLU(),
