@@ -1,4 +1,4 @@
-from ctypes import Union
+from typing import Union
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -125,7 +125,7 @@ class BelleIIBetter(Dataset):
     _cache_dir = ".cache"
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
-    def __init__(self, path: str, logger: logging.Logger, out_dim: int) -> None:
+    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2) -> None:
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.path = path

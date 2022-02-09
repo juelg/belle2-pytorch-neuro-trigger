@@ -32,9 +32,9 @@ if debug:
     val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
     test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 else:
-    train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-    val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-    test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+    train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+    val =   "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+    test =  "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
 
 def fit(trainer_module, logger):
     try:
@@ -47,9 +47,8 @@ def fit(trainer_module, logger):
 
     # load the best weights for evaluation
     ckpt_path = os.path.join(trainer_module[1].log_path, "ckpts")
-    best_ckpt = [i for i in os.listdir(ckpt_path) if i.startswith("epoch")][0]
-    # trainer_module[1].load_from_checkpoint(best_ckpt)
-    trainer_module[1].load_state_dict(torch.load(best_ckpt)["from_checkpoint"])
+    best_ckpt = os.path.join(ckpt_path, [i for i in os.listdir(ckpt_path) if i.startswith("epoch")][0])
+    trainer_module[1].load_state_dict(torch.load(best_ckpt)["state_dict"])
 
     # create eval plots
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
@@ -58,6 +57,8 @@ def fit(trainer_module, logger):
 
 data = (train, val, test)
 hparams = get_hyperpar_by_name(config)
+if debug:
+    hparams["epochs"] = 3
 experts = hparams.experts if not debug else [-1] #[0, 1, 2, 3, 4]
 
 experts_str = [f"expert_{i}" for i in experts]

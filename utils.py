@@ -9,6 +9,10 @@ import numpy as np
 
 import torch    
 
+csv_head = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
+
+"""
+
 class ThreadLogFilter(logging.Filter):
     """
     This filter only show log entries for specified thread name
@@ -52,6 +56,11 @@ def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], pa
         new_arr[idxs[i],-2:] = data[i]
 
     np.savetxt(os.path.join(path, f"pred_data_random{mode}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+
+    with open(os.path.join(path, f"pred_data_random{mode}.csv"), 'r+') as file:
+        content = file.read()
+        file.seek(0)
+        file.write(csv_head + content)
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
