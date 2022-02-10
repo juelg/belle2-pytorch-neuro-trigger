@@ -9,7 +9,7 @@ import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 
-from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, snap_source_state
+from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
 debug = False
 config = "baseline_v2"
@@ -178,6 +178,10 @@ if __name__ == "__main__":
         for t in threads:
             t.join()
     # create dataset with predictions
-    create_dataset_with_predictions([i[1] for i in trainers_modules], path=log_folder, mode="test")
-    expert_weights_json([i[1] for i in trainers_modules], path=log_folder)
+    expert_modules = [i[1] for i in trainers_modules]
+    create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
+    expert_weights_json(expert_modules, path=log_folder)
+    save_predictions_pickle(expert_modules, path=log_folder, mode="train")
+    save_predictions_pickle(expert_modules, path=log_folder, mode="val")
+    save_predictions_pickle(expert_modules, path=log_folder, mode="test")
 

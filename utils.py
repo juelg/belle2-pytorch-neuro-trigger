@@ -9,9 +9,11 @@ import numpy as np
 
 import torch    
 
-csv_head = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
+CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
 
 """
+
+PREDICTIONS_DATASET_FILENAME = "prediction_random{}.pt"
 
 class ThreadLogFilter(logging.Filter):
     """
@@ -34,8 +36,7 @@ def snap_source_state(log_folder: str):
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
 
-def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path, mode="val"):
-    # TODO do this with the best checkpoint
+def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path: str, mode="val"):
     mode = {"train": 0, "val": 1, "test": 2}[mode]
     dataset = []
     for expert in expert_pl_modules:
@@ -60,7 +61,27 @@ def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], pa
     with open(os.path.join(path, f"pred_data_random{mode+1}.csv"), 'r+') as file:
         content = file.read()
         file.seek(0)
-        file.write(csv_head + content)
+        file.write(CSV_HEAD + content)
+
+def save_predictions_pickle(expert_pl_modules: List[LightningModule], path: str, mode="val"):
+    mode = {"train": 0, "val": 1, "test": 2}[mode]
+    dataset = []
+    for expert in expert_pl_modules:
+        expert.eval()
+        with torch.no_grad():
+            d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+            for i in d:
+                x, y, y_hat_old, idx = i
+                y_hat = expert(x).cpu()
+                dataset.append((idx, y_hat))
+    idxs = torch.cat([i[0] for i in dataset])
+    data = torch.cat([i[1] for i in dataset])
+    dataset = sorted(zip(idxs, data), key=lambda x: x[0])
+    data = torch.stack([i[1] for i in dataset])
+
+    with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1)), 'wb') as file:
+        torch.save(data, file)
+
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):

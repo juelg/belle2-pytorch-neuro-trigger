@@ -43,6 +43,7 @@ configs = {
         "batch_size": 2048,
         "weight_decay": 1e-6,
         "in_size": 27,
+        # out_size must be in {1, 2} (if out_size=1 then we only train on z)
         "out_size": 2,
         "workers": 5,
         "epochs": 10,
@@ -51,7 +52,9 @@ configs = {
         "optim": "Adam",
         "act": "relu",
         "experts": [0, 1, 2, 3, 4],
-        # for smaller datasets
+        # should be similar to "baseline_v2/version_3"
+        "compare_to": None,
+        # example for expert specific parameters
         # "expert_0": {
         #     "batch_size": 2048,
         # },

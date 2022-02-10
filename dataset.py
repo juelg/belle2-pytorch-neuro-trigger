@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -125,7 +125,7 @@ class BelleIIBetter(Dataset):
     _cache_dir = ".cache"
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
-    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2) -> None:
+    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None) -> None:
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.path = path
@@ -149,6 +149,14 @@ class BelleIIBetter(Dataset):
             }
 
             self.save()
+
+        if compare_to:
+            # when we want to compare to different predictions
+            with open(compare_to, "rb") as f:
+                y_hat_old = torch.load(f)
+            if out_dim == 1:
+                y_hat_old = y_hat_old[:,0]
+            self.data["y_hat_old"] = y_hat_old
 
 
         self.logger.debug(

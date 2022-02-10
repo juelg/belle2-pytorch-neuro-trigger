@@ -12,6 +12,19 @@ Versions are tagged in git under v0.x
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [ ] train with different batchsizes and learning rates per expert
 - [ ] write readme page
+- [ ] add unit tests and linting
+- [ ] add bitbucket pipeline
+- [x] create pickle file with z, theta predictions after training for future comparision
+- [x] dont use dataset predictions but optionally the ones from older trainings
+
+
+ideas from kai
+- [x] include softsign activation function
+- [ ] bigger networks that where pruned
+- [ ] more weights to z, but not really an improvement
+- [ ] classification (if displaced vertex or not)
+- [ ] cnn -> only 406 parameters and good accuracy
+- [ ] lstm -> but is there time data? -> 64 clock cycle
 
 
 ## Version 0.3

@@ -1,3 +1,4 @@
+from ctypes import util
 import json
 import os
 from typing import Dict, Optional, List, Tuple, Union
@@ -7,6 +8,7 @@ from torch import optim
 from dataset import BelleIIBetter, BelleIIBetterExpert
 from torch.utils.data import DataLoader
 from model import BaselineModel, SimpleModel
+import utils
 from visualize import Visualize
 import logging
 from easydict import EasyDict
@@ -32,12 +34,16 @@ class NeuroTrigger(pl.LightningModule):
         # self.model.apply(init_weights, self.hparams.act)
         self.file_logger = logging.getLogger()
 
+        if hparams.compare_to:
+            compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1)) for i in range(3)]
+        else:
+            compare_to = [None, None, None]
         if self.expert == -1:
             self.data = [BelleIIBetter(
-                data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
+                data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
         else:
             self.data = [BelleIIBetterExpert(self.expert,
-                                             data[i], logger=self.file_logger, out_dim=hparams.out_size) for i in range(3)]
+                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
 
         # to see model and crit have a look into the dict defined in __init__.py
         self.crit = crits[self.hparams.loss]

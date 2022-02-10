@@ -1,5 +1,5 @@
 # Version to check with the config, only when versions match can we proceed
-__version__ = 0.3
+__version__ = 0.4
 import torch
 import model
 
@@ -24,7 +24,8 @@ models = {
 
 act_fun = {
     "tanh": torch.nn.Tanh(),
-    "tanh/2": LambdaModule(lambda x: torch.nn.Tanh()(x/2)),
+    "tanh/2": LambdaModule(lambda x: torch.tanh(x/2)),
+    "softsign": torch.nn.Softsign(),
     "relu": torch.nn.ReLU(),
     "sigmoid": torch.nn.Sigmoid(),
     "leaky_relu": torch.nn.LeakyReLU(),
