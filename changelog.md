@@ -1,6 +1,11 @@
 # Changelog
+Versions are tagged in git under v0.x
 
 ## Version 0.4
+- [ ] plot creation for already trained weights -> write cli where weights are loaded
+- [ ] only train on the first reco track of a track
+- [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
+- [ ] distributions into the same plot to make them more comparable
 - [ ] baseline model v2 with BN and Relu
 - [ ] add gradient clipping
 - [ ] add categories in config
@@ -24,10 +29,6 @@
 - [x] in the end of the training create weights, predication dataset, plots as pngs, and maybe evaluate test?
 - [x] validate with best trained data
 - [x] export (the best) weights in the end of the training
-- [ ] plot creation for already trained weights -> write cli where weights are loaded
-- [ ] only train on the first reco track of a track
-- [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
-- [ ] distributions into the same plot to make them more coparable
 
 ## Version 0.2
 - [x] description in experiment log

@@ -55,9 +55,9 @@ def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], pa
     for i in range(len(data)):
         new_arr[idxs[i],-2:] = data[i]
 
-    np.savetxt(os.path.join(path, f"pred_data_random{mode}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+    np.savetxt(os.path.join(path, f"pred_data_random{mode+1}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
 
-    with open(os.path.join(path, f"pred_data_random{mode}.csv"), 'r+') as file:
+    with open(os.path.join(path, f"pred_data_random{mode+1}.csv"), 'r+') as file:
         content = file.read()
         file.seek(0)
         file.write(csv_head + content)

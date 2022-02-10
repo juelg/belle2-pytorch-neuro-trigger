@@ -6,9 +6,9 @@ import torch
 import json
 
 
-def create_json_for_conf(conf):
+def create_json_for_conf(conf, version=0):
     experts = [f"expert_{i}" for i in range(5)]
-    exptert_paths = [os.path.join("log", conf, "version_0", expert, "ckpts") for expert in experts]
+    exptert_paths = [os.path.join("log", conf, f"version_{version}", expert, "ckpts") for expert in experts]
 
     fn = []
     for expert in exptert_paths:
@@ -31,15 +31,16 @@ def create_json_for_conf(conf):
         # print(checkpoint["state_dict"])
         exps[expert] = {"shapes": desc, "weights": checkpoint["state_dict"]}
 
-        with open(os.path.join(path, "wights.json"), "w") as f:
-            json.dump(exps[expert], f)
+        # with open(os.path.join(path, "wights.json"), "w") as f:
+        #     json.dump(exps[expert], f)
 
-    with open(os.path.join("log", conf, "version_0", "wights.json"), "w") as f:
+    # with open(os.path.join("log", conf, "version_0", "wights.json"), "w") as f:
+    with open(os.path.join("json_weights", "wights_new.json"), "w") as f:
         json.dump(exps, f)
 
 
-conf = "baseline_v1"
-create_json_for_conf(conf)
+conf = "baseline_v2"
+create_json_for_conf(conf, version=3)
 
 
 
