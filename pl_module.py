@@ -7,6 +7,7 @@ import torch
 from torch import optim
 from dataset import BelleIIBetter, BelleIIBetterExpert
 from torch.utils.data import DataLoader
+from mean_tb_logger import MeanTBLogger
 from model import BaselineModel, SimpleModel
 import utils
 from visualize import Visualize
@@ -27,6 +28,7 @@ class NeuroTrigger(pl.LightningModule):
     def __init__(self, hparams: EasyDict, data: BelleIIBetter, log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
         self.expert = expert
+        # self.mean_tb_logger = mean_tb_logger
         self.log_path = log_path
         self.hparams.update(self.extract_expert_hparams(hparams))
         self.model = models[self.hparams.model](
@@ -64,6 +66,12 @@ class NeuroTrigger(pl.LightningModule):
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
+
+    # def log(self, name: str, value, prog_bar: bool = False, logger: bool = True, on_step: Optional[bool] = None, on_epoch: Optional[bool] = None, reduce_fx="default", tbptt_reduce_fx=None, tbptt_pad_token=None, enable_graph: bool = False, sync_dist: bool = False, sync_dist_op=None, sync_dist_group=None, add_dataloader_idx: bool = True, batch_size: Optional[int] = None, metric_attribute: Optional[str] = None, rank_zero_only: Optional[bool] = None) -> None:
+    #     if self.mean_tb_logger is not None:
+    #         self.mean_tb_logger.log(self.expert, name, self.global_step, value)
+    #     return super().log(name, value, prog_bar, logger, on_step, on_epoch, reduce_fx, tbptt_reduce_fx, tbptt_pad_token, enable_graph, sync_dist, sync_dist_op, sync_dist_group, add_dataloader_idx, batch_size, metric_attribute, rank_zero_only)
+
 
     def training_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
         x, y = batch[0], batch[1]
@@ -126,6 +134,10 @@ class NeuroTrigger(pl.LightningModule):
 
         self.visualize.create_plots(
                 ys, y_hats, save=os.path.join(path, "post_training_plots"), create_baseline_plots=True)
+
+        # todo: idea: send (random) subset of samples to common visualize
+        # send here to save to our common loggin
+        # create own callback logger
 
 
     def test_step(self, batch: Tuple[torch.Tensor], batch_idx: int):

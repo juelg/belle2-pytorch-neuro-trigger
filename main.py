@@ -1,6 +1,7 @@
 import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from mean_tb_logger import MeanLoggerExp, MeanTBLogger
 from pl_module import NeuroTrigger
 import os
 from configs import get_hyperpar_by_name
@@ -140,10 +141,13 @@ if __name__ == "__main__":
         callbacks = [early_stop_callback, model_checkpoint]
         # callbacks = [model_checkpoint]
 
+        mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
+
         pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
         trainer = pl.Trainer(
             logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
-                        CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv")],
+                        CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
+                        MeanLoggerExp(version, mean_tb_logger, expert)],
             # row_log_interval=1,
             # track_grad_norm=2,
             # weights_summary=None,
