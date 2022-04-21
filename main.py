@@ -1,3 +1,4 @@
+from email.mime import base
 import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -13,9 +14,7 @@ import torch
 from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
 debug = True
-config = "baseline_v4_softsign"
-base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
-gpu_idx = 0
+gpu_idx = 0 # currenlty not used
 enable_progress_bar = False
 
 
@@ -36,6 +35,7 @@ else:
     train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
     val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
     test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+data = (train, val, test)
 
 def fit(trainer_module, logger):
     try:
@@ -55,116 +55,118 @@ def fit(trainer_module, logger):
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
+def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version):
+    expert = experts[expert_i]
+    early_stop_callback = EarlyStopping(
+        monitor='val_loss',
+        patience=30,
+        strict=True,
+        verbose=True,
+        mode='min'
+    )
+    model_checkpoint = ModelCheckpoint(
+        os.path.join(log_folder, f"expert_{expert}", "ckpts"),
+        monitor='val_loss',
+        save_last=True,
+        save_top_k=1,
+    )
+    callbacks = [early_stop_callback, model_checkpoint]
 
-data = (train, val, test)
-hparams = get_hyperpar_by_name(config)
-if debug:
-    hparams["epochs"] = 3
-experts = hparams.experts if not debug else [-1] #[0, 1, 2, 3, 4]
+    mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
 
-experts_str = [f"expert_{i}" for i in experts]
-logger = logging.getLogger()
+    pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
+    trainer = pl.Trainer(
+        logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
+                    CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
+                    MeanLoggerExp(version, mean_tb_logger, expert)],
+        # row_log_interval=1,
+        # track_grad_norm=2,
+        # weights_summary=None,
+        # distributed_backend='dp',
+        callbacks=callbacks,
+        max_epochs=hparams["epochs"],
+        deterministic=True,
+        # log_every_n_steps=1,
+        # profiler=True,
+        # fast_dev_run=True,
+        # gpus=[gpu_idx], #[0, 1],
+        default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
+        # auto_select_gpus=True,
+        # enable_pl_optimizer=True,
+        enable_progress_bar=enable_progress_bar,
+    )
+    return trainer, pl_module
 
-# check the latest version
-version = max([int(str(i).split("_")[-1])
-              for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
+def prepare_vars(config):
+    base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
+    hparams = get_hyperpar_by_name(config)
+    if debug:
+        hparams["epochs"] = 3
+    experts = hparams.experts if not debug else [-1] #[0, 1, 2, 3, 4]
 
-log_folder = os.path.join(base_log, config, f"version_{version}")
-if not Path(log_folder).exists():
-    Path(log_folder).mkdir(parents=True)
+    experts_str = [f"expert_{i}" for i in experts]
+    logger = logging.getLogger()
 
-if not debug:
-    # force a short experiment description
-    with open(os.path.join(log_folder, "desc.txt"), "w") as f:
-        f.write(f"Config description: {hparams.description}")
-    os.system(f"vim {os.path.join(log_folder, 'desc.txt')}")
+    # check the latest version
+    version = max([int(str(i).split("_")[-1])
+                for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
 
+    log_folder = os.path.join(base_log, config, f"version_{version}")
+    if not Path(log_folder).exists():
+        Path(log_folder).mkdir(parents=True)
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-    # filename=os.path.join(log_folder, 'main.log'),
-    # filemode='w'
-)
-
-# mute other libs debugging output
-logging.getLogger('matplotlib.font_manager').disabled = True
-logging.getLogger('matplotlib.ticker').disabled = True
-logging.getLogger('matplotlib.colorbar').disabled = True
-logging.getLogger('PIL.PngImagePlugin').disabled = True
-logging.getLogger('h5py._conv').disabled = True
+    if not debug:
+        # force a short experiment description
+        with open(os.path.join(log_folder, "desc.txt"), "w") as f:
+            f.write(f"Config description: {hparams.description}")
+        os.system(f"vim {os.path.join(log_folder, 'desc.txt')}")
 
 
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+    )
 
-# general logger which logs everything
-fh = logging.FileHandler(os.path.join(log_folder, f"app.log"), mode="w")
-fh.setLevel(logging.DEBUG)
-formatter = logging.Formatter(
-    '%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
-fh.setFormatter(formatter)
-logger.addHandler(fh)
+    # mute other libs debugging output
+    logging.getLogger('matplotlib.font_manager').disabled = True
+    logging.getLogger('matplotlib.ticker').disabled = True
+    logging.getLogger('matplotlib.colorbar').disabled = True
+    logging.getLogger('PIL.PngImagePlugin').disabled = True
+    logging.getLogger('h5py._conv').disabled = True
 
-# create file loggers
-for expert in experts:
-    fh = logging.FileHandler(os.path.join(
-        log_folder, f"expert_{expert}.log"), mode="w")
+
+
+    # general logger which logs everything
+    fh = logging.FileHandler(os.path.join(log_folder, f"app.log"), mode="w")
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         '%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
     fh.setFormatter(formatter)
-    fh.addFilter(ThreadLogFilter(f'expert_{expert}'))
     logger.addHandler(fh)
 
-logger.info(f"Using config {config} in version {version}")
+    # create file loggers
+    for expert in experts:
+        fh = logging.FileHandler(os.path.join(
+            log_folder, f"expert_{expert}.log"), mode="w")
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            '%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
+        fh.setFormatter(formatter)
+        fh.addFilter(ThreadLogFilter(f'expert_{expert}'))
+        logger.addHandler(fh)
+
+    logger.info(f"Using config {config} in version {version}")
+
+    return data, hparams, log_folder, experts, version, experts_str, logger
 
 
+def main(config):
+    data, hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config)
 
-if __name__ == "__main__":
     # save git commit and git diff in file
     snap_source_state(log_folder)
 
-    trainers_modules = []
-    for expert in experts:
-        early_stop_callback = EarlyStopping(
-            monitor='val_loss',
-            patience=30,
-            strict=True,
-            verbose=True,
-            mode='min'
-        )
-        model_checkpoint = ModelCheckpoint(
-            os.path.join(log_folder, f"expert_{expert}", "ckpts"),
-            monitor='val_loss',
-            save_last=True,
-            save_top_k=1,
-        )
-        callbacks = [early_stop_callback, model_checkpoint]
-
-        mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
-
-        pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
-        trainer = pl.Trainer(
-            logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
-                        CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
-                        MeanLoggerExp(version, mean_tb_logger, expert)],
-            # row_log_interval=1,
-            # track_grad_norm=2,
-            # weights_summary=None,
-            # distributed_backend='dp',
-            callbacks=callbacks,
-            max_epochs=hparams["epochs"],
-            deterministic=True,
-            # log_every_n_steps=1,
-            # profiler=True,
-            # fast_dev_run=True,
-            # gpus=[gpu_idx], #[0, 1],
-            default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
-            # auto_select_gpus=True,
-            # enable_pl_optimizer=True,
-            enable_progress_bar=enable_progress_bar,
-        )
-        trainers_modules.append((trainer, pl_module))
-
+    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version) for expert_i in range(len(experts))]
 
     if len(experts) == 1:
         fit(trainer_module=trainers_modules[0], logger=logger)
@@ -184,7 +186,11 @@ if __name__ == "__main__":
     expert_modules = [i[1] for i in trainers_modules]
     create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
     expert_weights_json(expert_modules, path=log_folder)
+
     save_predictions_pickle(expert_modules, path=log_folder, mode="train")
     save_predictions_pickle(expert_modules, path=log_folder, mode="val")
     save_predictions_pickle(expert_modules, path=log_folder, mode="test")
 
+
+if __name__ == "__main__":
+    main(config = "baseline_v4_softsign")
