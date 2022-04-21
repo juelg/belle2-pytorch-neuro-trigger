@@ -171,6 +171,8 @@ class NeuroTrigger(pl.LightningModule):
             return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optim == "Rprob":
             return optim.Rprop(self.model.parameters(), self.hparams.learning_rate)
+        elif self.hparams.optim == "SGD":
+            return optim.SGD(self.model.parameters(), self.hparams.learning_rate, momentum=0.9)
         else:
             raise RuntimeError(f"Optimizer {self.hparams.optim} is not defined!")
 

@@ -21,6 +21,23 @@ class BaselineModel(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
+class BaselineModelBN(nn.Module):
+    def __init__(self, inp: int = 27, out: int = 2, act=None):
+        super().__init__()
+        if not act:
+            act = nn.Tanh()
+        self.net = nn.Sequential(
+            nn.BatchNorm1d(inp),
+            nn.Linear(inp, 81),
+            act,
+            nn.BatchNorm1d(81),
+            nn.Linear(81, out),
+            act,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
 
 class SimpleModel(nn.Module):
     def __init__(self, inp: int = 27, out: int = 2, act=None):

@@ -2,6 +2,54 @@ from easydict import EasyDict
 import copy
 
 configs = {
+    "baseline_v4_softsign": {
+        # improving: 
+        "extends": "baseline_v3",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v4/version_0",
+        "description": "Baseline arch with v3 (softsign) and batchnorm before the layers",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v4_tanh": {
+        # improving: 
+        "extends": "baseline_v1",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v4/version_0",
+        "description": "Baseline arch with v1 (tanh) and batchnorm before the layers",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v4": {
+        # improving: yes definatly upon baseline v2
+        "extends": "baseline_v2",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch with v2 (tanh/2) and batchnorm before the layers",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v1_comp_v2": {
+        # imporving: yes -> tanh better than tanh/2
+        "extends": "baseline_v1",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch compared to baseline_v2 (tanh/2)",
+        "act": "tanh",
+    },
+    "baseline_v2_sgd": {
+        # imporving: no definatly worse
+        "extends": "baseline_v2",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch with SGD optimizer",
+        "optim": "SGD",
+    },
+    "baseline_v3": {
+        # improving: yes upon baseline v2
+        "extends": "baseline_v2",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch with softsign activation function",
+        "act": "softsign",
+    },
     "baseline_v2": {
         "extends": "baseline_v1",
         "description": "Baseline arch with tanh/2",

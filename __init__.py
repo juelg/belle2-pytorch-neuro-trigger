@@ -19,6 +19,7 @@ crits = {
 
 models = {
     "BaselineModel": model.BaselineModel,
+    "BaselineModelBN": model.BaselineModelBN,
     "SimpleModel": model.SimpleModel,
 }
 
