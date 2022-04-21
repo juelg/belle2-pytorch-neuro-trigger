@@ -10,6 +10,9 @@ from pytorch_lightning.loggers.base import rank_zero_experiment
 
 
 class MeanLoggerExp(LightningLoggerBase):
+    """Lighting logger for each expert that is just an interface between lighting and
+    MeanTBLogger. Thus, all logs are just forwarded to the MeanTBLogger object.
+    """
     def __init__(self, version: int, mean_tb_logger: 'MeanTBLogger', expert: int = -1):
         super().__init__()
         self.expert = expert
@@ -60,36 +63,28 @@ class MeanLoggerExp(LightningLoggerBase):
 
 
 
-class MeanTBLogger():
+class MeanTBLogger:
+    """Wrapper around TensorBoardLogger
+
+    Gathers metrics from all experts, waits until all are there then logs the mean over all experts.
+    """
     def __init__(self, path: str, experts: List[int], name=""):
         self.logger = TensorBoardLogger(path, name=name)
         # expert (this will be dict as -1 as key is possible), metric, step
         self.log_data = {expert: {} for expert in experts}
-        # self.max_steps = max_steps
 
     def check_log(self, metric, step, amount_log_entries):
-        # todo expert?
-        # values = [self.log_data[expert][metric][step] for expert in self.log_data]
         lens = [len(self.log_data[expert][metric]) for expert in self.log_data]
         if all([l>=amount_log_entries for l in lens]):
-            # self.logger.log_metrics({metric: np.array(values).mean()}, step)
-
-            # self.logger.log_metrics({metric: torch.stack([self.log_data[expert][metric][amount_log_entries-1] 
-            #                                             # for expert in self.log_data]).mean()}, step)
             self.logger.log_metrics({metric: np.mean([self.log_data[expert][metric][amount_log_entries-1] 
                                                         for expert in self.log_data])}, step)
 
 
     def log(self, expert: int, metric: str, step: int, value: float):
-        # if expert not in self.log_data:
-        #     self.log_data[expert] = {}
-
         # dynamically add metric to log dict
         if metric not in self.log_data[expert]:
             for exp in self.log_data:
-                self.log_data[exp][metric] = [] #[None for _ in range(self.max_steps)]
-        # assert len(self.log_data[exp][metric]) = 
-        # self.log_data[expert][metric][step] = value
+                self.log_data[exp][metric] = []
         self.log_data[expert][metric].append(value)
 
         self.check_log(metric, step, len(self.log_data[expert][metric]))

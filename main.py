@@ -12,8 +12,8 @@ import torch
 
 from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
-debug = False
-config = "baseline_v2"
+debug = True
+config = "baseline_v4_softsign"
 base_log = "/tmp/nt_pytorch_debug_log" if debug else "log" 
 gpu_idx = 0
 enable_progress_bar = False
@@ -29,13 +29,13 @@ enable_progress_bar = False
 
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
 if debug:
-    train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-    val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-    test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
+    train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+    val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+    test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
 else:
-    train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
-    val =   "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
-    test =  "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+    train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+    val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+    test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
 
 def fit(trainer_module, logger):
     try:
@@ -139,7 +139,6 @@ if __name__ == "__main__":
             save_top_k=1,
         )
         callbacks = [early_stop_callback, model_checkpoint]
-        # callbacks = [model_checkpoint]
 
         mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
 

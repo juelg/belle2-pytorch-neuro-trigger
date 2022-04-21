@@ -25,7 +25,6 @@ def create_json_for_conf(conf, version=0):
         # model.load_state_dict(checkpoint["state_dict"])
         desc = {}
         for key, value in checkpoint["state_dict"].items():
-            print(value.shape)
             desc[key] = value.shape
             checkpoint["state_dict"][key] = value.tolist()
         # print(checkpoint["state_dict"])

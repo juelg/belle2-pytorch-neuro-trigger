@@ -90,7 +90,6 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
         desc = {}
         weights = {}
         for key, value in expert_module.state_dict().items():
-            print(value.shape)
             desc[key] = value.shape
             weights[key] = value.tolist()
 
