@@ -18,6 +18,7 @@ import pytorch_lightning as pl
 
 from dataset import BelleIIBetter
 from pathlib import Path
+from pytorch_lightning.loggers.base import DummyLogger
 
 
 
@@ -82,6 +83,9 @@ class Visualize:
             fig.savefig(os.path.join(save, f"{name}.png"), dpi=200, bbox_inches='tight')
 
     def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None, create_baseline_plots=False):
+        if isinstance(self.module.logger, DummyLogger):
+            # this is a test run, dont create plots!
+            return
         if (self.module.current_epoch % 10) != 0 and save is None:
             return
         self.module.file_logger.debug(f"Creating plots for expert {self.module.expert}")

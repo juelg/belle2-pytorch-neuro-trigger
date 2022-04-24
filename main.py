@@ -13,10 +13,8 @@ import torch
 
 from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
-debug = True
-gpu_idx = 0 # currenlty not used
-enable_progress_bar = False
-
+# if DEBUG=True then logs will go to /tmp and only one expert will be used
+DEBUG = True
 
 # train = "/home/tobi/neurotrigger/train1"
 # val = "/home/tobi/neurotrigger/valid1"
@@ -27,15 +25,17 @@ enable_progress_bar = False
 # test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
 
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
-if debug:
-    train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
-    val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
-    test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
-else:
-    train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
-    val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
-    test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
-data = (train, val, test)
+
+train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+
+DATA_DEBUG = (train, val, test)
+
+train = "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+DATA_PROD = (train, val, test)
 
 def fit(trainer_module, logger):
     try:
@@ -55,7 +55,7 @@ def fit(trainer_module, logger):
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version):
+def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, fast_dev_run=False, overfit_batches = 0.0):
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
@@ -83,21 +83,23 @@ def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, versi
         # track_grad_norm=2,
         # weights_summary=None,
         # distributed_backend='dp',
+        # gradient_clip_val=..,
         callbacks=callbacks,
         max_epochs=hparams["epochs"],
         deterministic=True,
         # log_every_n_steps=1,
         # profiler=True,
-        # fast_dev_run=True,
+        fast_dev_run=fast_dev_run,
+        overfit_batches=overfit_batches,
         # gpus=[gpu_idx], #[0, 1],
         default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
         # auto_select_gpus=True,
         # enable_pl_optimizer=True,
-        enable_progress_bar=enable_progress_bar,
+        enable_progress_bar=False,
     )
     return trainer, pl_module
 
-def prepare_vars(config):
+def prepare_vars(config, debug=False):
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
     hparams = get_hyperpar_by_name(config)
     if debug:
@@ -157,11 +159,11 @@ def prepare_vars(config):
 
     logger.info(f"Using config {config} in version {version}")
 
-    return data, hparams, log_folder, experts, version, experts_str, logger
+    return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config):
-    data, hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config)
+def main(config, data, debug=False):
+    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug)
 
     # save git commit and git diff in file
     snap_source_state(log_folder)
@@ -193,4 +195,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    main(config = "baseline_v4_softsign")
+    main(config = "baseline_v4_softsign", data=DATA_DEBUG if DEBUG else DATA_PROD, debug=DEBUG)

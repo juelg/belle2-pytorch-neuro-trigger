@@ -165,8 +165,7 @@ class BelleIIBetter(Dataset):
 
     def get_data_array(self):
         # also used in utils
-        with gzip.open(self.path, "rt") as f:
-            dt = np.loadtxt(self.path, skiprows=2)
+        dt = np.loadtxt(self.path, skiprows=2)
         return dt
 
 

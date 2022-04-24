@@ -1,6 +1,12 @@
 # Changelog
 Versions are tagged in git under v0.x
 
+# Ideas for reweighting
+
+## Oversampling
+
+
+
 ## Version 0.4
 - [ ] plot creation for already trained weights -> write cli where weights are loaded
 - [ ] only train on the first reco track of a track
@@ -12,10 +18,12 @@ Versions are tagged in git under v0.x
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [ ] train with different batchsizes and learning rates per expert
 - [ ] write readme page
-- [ ] add unit tests and linting
+- [x] add unit tests
+- [ ] add linting
 - [ ] add bitbucket pipeline
 - [x] create pickle file with z, theta predictions after training for future comparision
 - [x] dont use dataset predictions but optionally the ones from older trainings
+- [ ] able to compare not only with one specified, but also with others -> that should probably be a line tool (after training)
 
 
 ideas from kai
