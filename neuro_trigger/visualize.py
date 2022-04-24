@@ -16,7 +16,7 @@ import scipy.stats
 from torch.utils.data import Dataset
 import pytorch_lightning as pl
 
-from dataset import BelleIIBetter
+from neuro_trigger.pytorch.dataset import BelleIIBetter
 from pathlib import Path
 from pytorch_lightning.loggers.base import DummyLogger
 

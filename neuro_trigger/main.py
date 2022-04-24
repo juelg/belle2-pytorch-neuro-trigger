@@ -2,16 +2,16 @@ from email.mime import base
 import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-from mean_tb_logger import MeanLoggerExp, MeanTBLogger
-from pl_module import NeuroTrigger
+from neuro_trigger.lightning.mean_tb_logger import MeanLoggerExp, MeanTBLogger
+from neuro_trigger.lightning.pl_module import NeuroTrigger
 import os
-from configs import get_hyperpar_by_name
+from neuro_trigger.configs import get_hyperpar_by_name
 from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 
-from utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
+from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
 # if DEBUG=True then logs will go to /tmp and only one expert will be used
 DEBUG = True

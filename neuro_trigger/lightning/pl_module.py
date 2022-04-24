@@ -4,14 +4,14 @@ from typing import Dict, Optional, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from dataset import BelleIIBetter, BelleIIBetterExpert
+from neuro_trigger.pytorch.dataset import BelleIIBetter, BelleIIBetterExpert
 from torch.utils.data import DataLoader
-import utils
-from visualize import Visualize
+import neuro_trigger.utils
+from neuro_trigger.visualize import Visualize
 import logging
 from easydict import EasyDict
 import copy
-from __init__ import crits, models, act_fun
+from neuro_trigger import crits, models, act_fun
 import numpy as np
 
 def init_weights(m: torch.nn.Module, act: str):

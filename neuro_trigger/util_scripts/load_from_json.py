@@ -1,6 +1,6 @@
 # %%
 import os
-from pl_module import NeuroTrigger
+from neuro_trigger.lightning.pl_module import NeuroTrigger
 import torch
 from torch.utils.data import DataLoader
 import json

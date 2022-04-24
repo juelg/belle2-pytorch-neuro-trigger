@@ -1,7 +1,7 @@
 # Version to check with the config, only when versions match can we proceed
 __version__ = 0.4
 import torch
-import model
+import neuro_trigger.pytorch.model as model
 
 class LambdaModule(torch.nn.Module):
     def __init__(self, f) -> None:

@@ -1,8 +1,8 @@
 import unittest
-# import sys
-# sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
+import sys
+sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 
-from main import create_trainer_pl_module, fit, prepare_vars
+from neuro_trigger.main import create_trainer_pl_module, fit, prepare_vars
 
 
 # TODO
@@ -10,7 +10,7 @@ from main import create_trainer_pl_module, fit, prepare_vars
 # run fast dev run and overfit batches
 
 
-test_data = "tests/test_data.csv"
+test_data = "neuro_trigger/tests/test_data.csv"
 
 
 class End2End(unittest.TestCase):
