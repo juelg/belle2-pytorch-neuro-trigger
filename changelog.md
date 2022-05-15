@@ -24,6 +24,7 @@ Versions are tagged in git under v0.x
 - [x] create pickle file with z, theta predictions after training for future comparision
 - [x] dont use dataset predictions but optionally the ones from older trainings
 - [ ] able to compare not only with one specified, but also with others -> that should probably be a line tool (after training)
+- [x] organize main better and support cmd args
 
 
 ideas from kai

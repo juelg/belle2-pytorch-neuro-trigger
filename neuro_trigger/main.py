@@ -1,3 +1,5 @@
+import argparse
+from datetime import datetime
 from email.mime import base
 import threading
 import pytorch_lightning as pl
@@ -13,8 +15,6 @@ import torch
 
 from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
 
-# if DEBUG=True then logs will go to /tmp and only one expert will be used
-DEBUG = True
 
 # train = "/home/tobi/neurotrigger/train1"
 # val = "/home/tobi/neurotrigger/valid1"
@@ -194,5 +194,20 @@ def main(config, data, debug=False):
     save_predictions_pickle(expert_modules, path=log_folder, mode="test")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description='Tool to start neuro trigger training.')
+    parser.add_argument('mode', type=str,
+                        help='config mode to use, must be defined in config.py')
+    parser.add_argument('-p', '--production',
+                        help='if not given code will run in debug mode', action='store_true')
+    # if not production then logs will go to /tmp and only one expert will be used
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == "__main__":
-    main(config = "baseline_v4_softsign", data=DATA_DEBUG if DEBUG else DATA_PROD, debug=DEBUG)
+    args = parse_args()
+    debug = not args.production
+    print(debug)
+    # main(config = "baseline_v4_softsign", data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
+    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
