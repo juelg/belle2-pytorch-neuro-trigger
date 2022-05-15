@@ -99,6 +99,10 @@ def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, versi
     )
     return trainer, pl_module
 
+def write_global_journal(base_log, config, journal_name="log.txt"):
+    with open(os.path.join(base_log, journal_name), "a") as f:
+        f.write(f"{datetime.now()}: {config}\n")
+
 def prepare_vars(config, debug=False):
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
     hparams = get_hyperpar_by_name(config)
@@ -158,6 +162,8 @@ def prepare_vars(config, debug=False):
         logger.addHandler(fh)
 
     logger.info(f"Using config {config} in version {version}")
+
+    write_global_journal(base_log, log_folder)
 
     return hparams, log_folder, experts, version, experts_str, logger
 

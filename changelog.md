@@ -25,6 +25,7 @@ Versions are tagged in git under v0.x
 - [x] dont use dataset predictions but optionally the ones from older trainings
 - [ ] able to compare not only with one specified, but also with others -> that should probably be a line tool (after training)
 - [x] organize main better and support cmd args
+- [x] global experiment log
 
 
 ideas from kai
