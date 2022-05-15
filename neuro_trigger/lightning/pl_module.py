@@ -146,7 +146,7 @@ class NeuroTrigger(pl.LightningModule):
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.data[0], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,
-                          drop_last=True, pin_memory=True, shuffle=True)
+                          drop_last=True, pin_memory=True, shuffle=self.data[0].requires_shuffle)
 
     def val_dataloader(self) -> DataLoader:
         return DataLoader(self.data[1], batch_size=self.hparams.batch_size, num_workers=self.hparams.workers,

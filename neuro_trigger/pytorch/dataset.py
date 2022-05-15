@@ -159,9 +159,11 @@ class BelleIIBetter(Dataset):
             self.data["y_hat_old"] = y_hat_old
 
 
-        self.logger.debug(
-            f"Dataset {self.path} with length {len(self)} done init")
-        print("done")
+
+
+    @property
+    def requires_shuffle(self):
+        return True
 
     def get_data_array(self):
         # also used in utils
@@ -221,8 +223,68 @@ class BelleIIBetterExpert(BelleIIBetter):
         # senity check
         assert (self.data["expert"] == self.expert).all()
 
-        self.logger.debug(
-            f"Dataset {self.path} expert #{self.expert} with length {len(self)} done init")
+class BelleIIBetterExpertDist(BelleIIBetterExpert):
+    # TODO: should this return batches?
+    # TODO: experts?
+
+    N_BUCKETS = 21
+    MEAN = 0
+    STD = 0.4
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.sort_z = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
+        self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
+        self.buckets = {}
+        for idx, z in self.sort_z:
+            bucket = self.get_bucket(z)
+            if bucket not in self.buckets:
+                self.buckets[self.get_bucket(z)] = []
+
+            self.buckets[self.get_bucket(z)].append(idx)
+
+        self.bucket_idx = np.arange(len(self.buckets))
+        self.dist = norm(loc=self.MEAN, scale=self.STD)
+
+        # print([self.get_bounds(bucket) for bucket in self.bucket_idx])
+        self.probs = [self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
+        # self.probs = [1/self.N_BUCKETS for _ in self.bucket_idx] #[self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
+
+
+    def get_prob_for_bounds(self, lower, upper):
+        return self.dist.cdf(upper) - self.dist.cdf(lower)
+    
+
+    def get_bounds(self, bucket):
+        lower = 2*(bucket/self.N_BUCKETS - 0.5)
+        upper = lower + 2/self.N_BUCKETS
+        if math.isclose(lower, -1):
+            lower = -math.inf
+        if math.isclose(upper, 1):
+            upper = math.inf
+        return lower, upper
+
+    def get_bucket(self, z):
+        return math.floor((z/2 + 0.5)*self.N_BUCKETS)
+
+    def __len__(self):
+        return len(self.data["x"])
+
+    @property
+    def requires_shuffle(self):
+        # does not require further shuffeling by the dataloader
+        return False
+
+    def __getitem__(self, _):
+        # sample a bucket
+        # print(self.probs)
+        # print(sum(self.probs))
+        bucket = np.random.choice(self.bucket_idx, p=self.probs)
+
+        # sample uniformly from that bucket
+        idx = np.random.choice(self.buckets[bucket])
+        return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
+
 
 
 if __name__ == "__main__":
