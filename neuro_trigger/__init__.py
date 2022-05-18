@@ -2,6 +2,7 @@
 __version__ = 0.4
 import torch
 import neuro_trigger.pytorch.model as model
+from neuro_trigger.pytorch.dataset import filters 
 
 class LambdaModule(torch.nn.Module):
     def __init__(self, f) -> None:
@@ -31,5 +32,11 @@ act_fun = {
     "sigmoid": torch.nn.Sigmoid(),
     "leaky_relu": torch.nn.LeakyReLU(),
     "selu": torch.nn.SELU(),
+}
+
+filter_funcs = {
+    "filter_max_2_events": filters.filter_max_2_events,
+    "filter_duplicate_events": filters.filter_duplicate_events,
+    "no_filter": filters.no_filter,
 }
 

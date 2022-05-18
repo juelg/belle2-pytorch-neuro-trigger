@@ -15,6 +15,37 @@ from scipy.stats import norm
 
 import hashlib
 
+class filters
+    # filter function
+    @staticmethod
+    def filter_max_2_events(data):
+        b_idx = data["ntracks"] > 2
+        for key in data:
+            data[key] = data[key][~b_idx]
+        return data
+
+    @staticmethod
+    def filter_duplicate_events(data):
+        # create map event,y -> tracks
+        event_map = {}
+        for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
+            ey = f"{e},{y[0]},{y[1]}"
+            if ey not in event_map:
+                event_map[ey] = []
+            event_map[ey].append(idx)
+        keep_idx = []
+        for key, value in event_map.items():
+            keep_idx.append(value[0])
+        keep_idx = np.array(keep_idx)
+
+        for key in data:
+            data[key] = data[key][keep_idx]
+
+        return dataa
+
+    @staticmethod
+    def no_filter(data):
+        return data
 
 
 def md5(fname):
@@ -31,7 +62,9 @@ class BelleIIBetter(Dataset):
     _cache_dir = ".cache"
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
-    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None, filter=None) -> None:
+    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None, fltr=None) -> None:
+        # filter must be a function that receives a dictionary of the form created by the init_data function
+        # it should return a filtered variant of this dataset in the same dictionary form
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.path = path
@@ -39,7 +72,7 @@ class BelleIIBetter(Dataset):
         self._cache_file = f"{md5(self.path)}.pt"
         self.logger = logger
         self.out_dim = out_dim
-        self.filter = self.filter_duplicate_events #filter or (lambda x: x) #self.filter_duplicate_events #= 
+        self.filter = fltr or (lambda x: x)
         self.compare_to = compare_to 
         self.init_data(self.filter, self.compare_to)
 
@@ -81,51 +114,6 @@ class BelleIIBetter(Dataset):
             if self.out_dim == 1:
                 y_hat_old = y_hat_old[:,0]
             self.data["y_hat_old"] = y_hat_old
-
-    @staticmethod
-    def filter_max_2_events(data):
-        b_idx = data["ntracks"] > 2
-        for key in data:
-            data[key] = data[key][~b_idx]
-        return data
-
-    @staticmethod
-    def filter_duplicate_events(data):
-        # create map event,y -> tracks
-        event_map = {}
-        for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
-            ey = f"{e},{y[0]},{y[1]}"
-            if ey not in event_map:
-                event_map[ey] = []
-            event_map[ey].append(idx)
-        keep_idx = []
-        for key, value in event_map.items():
-            keep_idx.append(value[0])
-        keep_idx = np.array(keep_idx)
-
-        for key in data:
-            data[key] = data[key][keep_idx]
-
-        # # hacky
-        # if "random3" in self.path:
-        #     from neuro_trigger.utils import CSV_HEAD
-        #     asdf = "/mnt/scratch/juelg/neuro-trigger-v2/log/baseline_v3/version_2/pred_data_random3.csv"
-        #     dt = np.loadtxt(asdf, skiprows=2)
-        #     dt[keep_idx]
-
-        #     np.savetxt(asdf + "2", dt, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
-
-        #     with open(asdf+"2", 'r+') as file:
-        #         content = file.read()
-        #         file.seek(0)
-        #         file.write(CSV_HEAD + content)
-        #     exit()
-
-        return data
-        
-            
-
-
 
 
     @property

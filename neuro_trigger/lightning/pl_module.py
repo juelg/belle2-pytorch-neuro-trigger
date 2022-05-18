@@ -4,14 +4,14 @@ from typing import Dict, Optional, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from neuro_trigger.pytorch.dataset import BelleIIBetter, BelleIIBetterExpert
+from neuro_trigger.pytorch.dataset import BelleIIBetter, BelleIIBetterExpert, BelleIIBetterExpertDist
 from torch.utils.data import DataLoader
-import neuro_trigger.utils
+from neuro_trigger import utils
 from neuro_trigger.visualize import Visualize
 import logging
 from easydict import EasyDict
 import copy
-from neuro_trigger import crits, models, act_fun
+from neuro_trigger import crits, models, act_fun, filter_funcs
 import numpy as np
 
 def init_weights(m: torch.nn.Module, act: str):
@@ -32,16 +32,23 @@ class NeuroTrigger(pl.LightningModule):
         # self.model.apply(init_weights, self.hparams.act)
         self.file_logger = logging.getLogger()
 
+
+        fltr = filter_funcs[self.hparams.get("filter", "no_filter")]
+
         if hparams.compare_to:
             compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1)) for i in range(3)]
         else:
             compare_to = [None, None, None]
         if self.expert == -1:
             self.data = [BelleIIBetter(
-                data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+                data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
+        elif self.hparams.get("dist", False):
+            self.data = [cl(self.expert,
+                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i, cl in enumerate((BelleIIBetterExpertDist, BelleIIBetterExpert, BelleIIBetterExpert))]
+
         else:
             self.data = [BelleIIBetterExpert(self.expert,
-                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
 
         # to see model and crit have a look into the dict defined in __init__.py
         self.crit = crits[self.hparams.loss]
