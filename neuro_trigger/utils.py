@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import copy
 import json
 import logging
 import os
@@ -36,12 +37,18 @@ def snap_source_state(log_folder: str):
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
 
-def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path: str, mode="val"):
+def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path: str, mode="val", re_init=False):
     mode = {"train": 0, "val": 1, "test": 2}[mode]
     dataset = []
     for expert in expert_pl_modules:
         expert.eval()
         with torch.no_grad():
+            if re_init:
+                da = copy.deepcopy(expert.data[mode])
+                # if compare_to no set, it will take the very original one
+                da.init_data(filter=None, compare_to=da.compare_to)
+                d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
+            else:
             d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
             for i in d:
                 x, y, y_hat_old, idx = i
@@ -56,7 +63,7 @@ def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], pa
     for i in range(len(data)):
         new_arr[idxs[i],-2:] = data[i]
 
-    np.savetxt(os.path.join(path, f"pred_data_random{mode+1}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+    np.savetxt(os.path.join(path, f"pred_data_random{mode+1}{'_unfiltered' if re_init else ''}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
 
     with open(os.path.join(path, f"pred_data_random{mode+1}.csv"), 'r+') as file:
         content = file.read()

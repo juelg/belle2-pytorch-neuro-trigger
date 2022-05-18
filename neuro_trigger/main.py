@@ -193,6 +193,7 @@ def main(config, data, debug=False):
     # create dataset with predictions
     expert_modules = [i[1] for i in trainers_modules]
     create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
+    create_dataset_with_predictions(expert_modules, path=log_folder, mode="test", re_init=True)
     expert_weights_json(expert_modules, path=log_folder)
 
     save_predictions_pickle(expert_modules, path=log_folder, mode="train")

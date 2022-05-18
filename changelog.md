@@ -16,16 +16,19 @@ Versions are tagged in git under v0.x
 - [ ] add gradient clipping
 - [ ] add categories in config
 - [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
-- [ ] train with different batchsizes and learning rates per expert
+- [x] train with different batchsizes and learning rates per expert
 - [ ] write readme page
 - [x] add unit tests
 - [ ] add linting
 - [ ] add bitbucket pipeline
 - [x] create pickle file with z, theta predictions after training for future comparision
 - [x] dont use dataset predictions but optionally the ones from older trainings
-- [ ] able to compare not only with one specified, but also with others -> that should probably be a line tool (after training)
+- [ ] able to compare not only with one specified, but also with others -> that should probably be a command line tool (after training)
+- [ ] file with single output number -> over all experts and per expert and maybe compare to previous
+- [ ] distribution sampling with in config: distribution should be configurable
 - [x] organize main better and support cmd args
 - [x] global experiment log
+- [x] filter functions
 
 
 ideas from kai
