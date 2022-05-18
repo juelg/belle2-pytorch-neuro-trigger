@@ -3,6 +3,7 @@ __version__ = 0.4
 import torch
 import neuro_trigger.pytorch.model as model
 from neuro_trigger.pytorch.dataset import filters 
+from scipy.stats import norm, uniform
 
 class LambdaModule(torch.nn.Module):
     def __init__(self, f) -> None:
@@ -39,4 +40,15 @@ filter_funcs = {
     "filter_duplicate_events": filters.filter_duplicate_events,
     "no_filter": filters.no_filter,
 }
+
+def get_dist_func(conf_key):
+    if "norm" in conf_key:
+        return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
+    elif "uniform" in conf_key:
+        return norm(loc=conf_key["norm"]["lower"], scale=conf_key["norm"]["upper"])
+
+
+
+
+
 

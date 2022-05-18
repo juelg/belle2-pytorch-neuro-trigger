@@ -11,7 +11,6 @@ import os
 import logging
 import gzip
 import numpy as np
-from scipy.stats import norm
 
 import hashlib
 
@@ -196,14 +195,11 @@ class BelleIIBetterExpert(BelleIIBetter):
 class BelleIIBetterExpertDist(BelleIIBetterExpert):
     # TODO: should this return batches?
 
-    N_BUCKETS = 21
-    MEAN = 0
-    STD = 0.4
-
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+        super().__init__(dist, *args, n_buckets=21, **kwargs)
         self.sort_z = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
         self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
+        self.n_buckets = n_buckets
         self.buckets = {}
         for idx, z in self.sort_z:
             bucket = self.get_bucket(z)
@@ -213,11 +209,9 @@ class BelleIIBetterExpertDist(BelleIIBetterExpert):
             self.buckets[self.get_bucket(z)].append(idx)
 
         self.bucket_idx = np.arange(len(self.buckets))
-        self.dist = norm(loc=self.MEAN, scale=self.STD)
+        self.dist = dist
 
-        # print([self.get_bounds(bucket) for bucket in self.bucket_idx])
         self.probs = [self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
-        # self.probs = [1/self.N_BUCKETS for _ in self.bucket_idx] #[self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
 
 
     def get_prob_for_bounds(self, lower, upper):
@@ -225,8 +219,8 @@ class BelleIIBetterExpertDist(BelleIIBetterExpert):
     
 
     def get_bounds(self, bucket):
-        lower = 2*(bucket/self.N_BUCKETS - 0.5)
-        upper = lower + 2/self.N_BUCKETS
+        lower = 2*(bucket/self.n_buckets - 0.5)
+        upper = lower + 2/self.n_buckets
         if math.isclose(lower, -1):
             lower = -math.inf
         if math.isclose(upper, 1):
@@ -234,7 +228,7 @@ class BelleIIBetterExpertDist(BelleIIBetterExpert):
         return lower, upper
 
     def get_bucket(self, z):
-        return math.floor((z/2 + 0.5)*self.N_BUCKETS)
+        return math.floor((z/2 + 0.5)*self.n_buckets)
 
     def __len__(self):
         return len(self.data["x"])

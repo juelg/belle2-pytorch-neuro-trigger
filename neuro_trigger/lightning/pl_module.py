@@ -11,7 +11,7 @@ from neuro_trigger.visualize import Visualize
 import logging
 from easydict import EasyDict
 import copy
-from neuro_trigger import crits, models, act_fun, filter_funcs
+from neuro_trigger import crits, models, act_fun, filter_funcs, get_dist_func
 import numpy as np
 
 def init_weights(m: torch.nn.Module, act: str):
@@ -43,9 +43,9 @@ class NeuroTrigger(pl.LightningModule):
             self.data = [BelleIIBetter(
                 data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
         elif self.hparams.get("dist", False):
-            self.data = [cl(self.expert,
-                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i, cl in enumerate((BelleIIBetterExpertDist, BelleIIBetterExpert, BelleIIBetterExpert))]
-
+            dist = get_dist_func(self.hparams.dist)
+            self.data [BelleIIBetterExpertDist(dist, self.expert, data[i], n_buckets=self.hparams.dist.n_buckets, logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr)]
+            self.data = [BelleIIBetterExpert(self.expert, data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in [1, 2]]
         else:
             self.data = [BelleIIBetterExpert(self.expert,
                                              data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
