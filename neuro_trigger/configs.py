@@ -42,6 +42,14 @@ configs = {
         "description": "Baseline arch with SGD optimizer",
         "optim": "SGD",
     },
+    "baseline_v3.1": {
+        # improving: yes upon baseline v2
+        "extends": "baseline_v3",
+        "batch_size": 512,
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch with softsign activation function, comp b_v2/v4, bs 512, del dup events",
+    },
     "baseline_v3": {
         # improving: yes upon baseline v2
         "extends": "baseline_v2",
