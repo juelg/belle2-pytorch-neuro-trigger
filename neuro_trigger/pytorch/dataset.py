@@ -14,7 +14,7 @@ import numpy as np
 
 import hashlib
 
-class filters
+class filters:
     # filter function
     @staticmethod
     def filter_max_2_events(data):
@@ -40,7 +40,7 @@ class filters
         for key in data:
             data[key] = data[key][keep_idx]
 
-        return dataa
+        return data
 
     @staticmethod
     def no_filter(data):
