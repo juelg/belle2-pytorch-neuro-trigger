@@ -1,7 +1,9 @@
+from ast import Dict
 from collections import OrderedDict
 import copy
 import json
 import logging
+from lzma import MODE_FAST
 import os
 from typing import List
 from pytorch_lightning import LightningModule
@@ -14,7 +16,9 @@ CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iN
 
 """
 
-PREDICTIONS_DATASET_FILENAME = "prediction_random{}.pt"
+MODE2IN = {"train": 0, "val": 1, "test": 2}
+
+PREDICTIONS_DATASET_FILENAME = "prediction_random{}{}.pt"
 
 class ThreadLogFilter(logging.Filter):
     """
@@ -36,11 +40,15 @@ def snap_source_state(log_folder: str):
     # get git diff
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
+    with open(os.path.join(log_folder, "git_id.txt"), "r") as f:
+        return f.read()
 
-def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], path: str, mode="val", re_init=False):
-    mode = {"train": 0, "val": 1, "test": 2}[mode]
-    dataset = []
+
+def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode="val", re_init=False) -> Dict[int, torch.tensor]:
+    mode = MODE2IN[mode]
+    preds = {}
     for expert in expert_pl_modules:
+        preds[expert.expert] = []
         expert.eval()
         with torch.no_grad():
             if re_init:
@@ -49,46 +57,80 @@ def create_dataset_with_predictions(expert_pl_modules: List[LightningModule], pa
                 da.init_data(filter=None, compare_to=da.compare_to)
                 d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
             else:
-            d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+                d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
-                dataset.append((idx, y_hat))
-    idxs = torch.cat([i[0] for i in dataset])
-    data = torch.cat([i[1] for i in dataset])
+                # dataset.append((idx, y_hat))
+                preds[expert.expert].append((idx, y_hat, y, expert))
 
-    data_arr = expert.data[mode].get_data_array()
+    for expert in expert_pl_modules:
+        # cat and not stack because we have batches
+        preds[expert.expert] = torch.cat(preds[expert.expert])
+    return preds
+
+
+def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode="val", name_extension=""):
+    mode = MODE2IN[mode]
+    # dataset = []
+    # for expert in expert_pl_modules:
+    #     expert.eval()
+    #     with torch.no_grad():
+    #         if re_init:
+    #             da = copy.deepcopy(expert.data[mode])
+    #             # if compare_to no set, it will take the very original one
+    #             da.init_data(filter=None, compare_to=da.compare_to)
+    #             d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
+    #         else:
+    #             d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+    #         for i in d:
+    #             x, y, y_hat_old, idx = i
+    #             y_hat = expert(x)
+    #             dataset.append((idx, y_hat))
+    # idxs = torch.cat([i[0] for i in dataset])
+    # data = torch.cat([i[1] for i in dataset])
+
+    idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
+    data = torch.cat([preds[expert.expert][:,1] for expert in expert_pl_modules])
+
+    data_arr = expert_pl_modules[0].data[mode].get_data_array()
     new_arr = np.zeros((data_arr.shape[0], data_arr.shape[1] + 2))
     new_arr[:,:-2] = data_arr
     for i in range(len(data)):
         new_arr[idxs[i],-2:] = data[i]
 
-    np.savetxt(os.path.join(path, f"pred_data_random{mode+1}{'_unfiltered' if re_init else ''}.csv"), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+    fname = f"pred_data_random{mode+1}{name_extension}.csv"
 
-    with open(os.path.join(path, f"pred_data_random{mode+1}.csv"), 'r+') as file:
+    np.savetxt(os.path.join(path, fname), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+
+    with open(os.path.join(path, fname), 'r+') as file:
         content = file.read()
         file.seek(0)
         file.write(CSV_HEAD + content)
 
-def save_predictions_pickle(expert_pl_modules: List[LightningModule], path: str, mode="val"):
-    mode = {"train": 0, "val": 1, "test": 2}[mode]
-    dataset = []
-    for expert in expert_pl_modules:
-        expert.eval()
-        with torch.no_grad():
-            d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
-            for i in d:
-                x, y, y_hat_old, idx = i
-                y_hat = expert(x).cpu()
-                dataset.append((idx, y_hat))
-    idxs = torch.cat([i[0] for i in dataset])
-    data = torch.cat([i[1] for i in dataset])
-    dataset = sorted(zip(idxs, data), key=lambda x: x[0])
-    data = torch.stack([i[1] for i in dataset])
+def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode="val", name_extension=""):
+    mode = MODE2IN[mode]
+    dataset = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
+    dataset = sorted(dataset, key=lambda x: x[0])
+    # stack needed as sorted creates python list
+    data = torch.stack(dataset)
 
-    with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1)), 'wb') as file:
+    with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1, name_extension)), 'wb') as file:
         torch.save(data, file)
 
+def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]):
+    loss = {}
+    std = {}
+    for expert in expert_pl_modules:
+        loss[expert.expert] = expert.crit(preds[expert.expert][:,1], preds[expert.expert][:,2])
+        std[expert.expert] = torch.std(preds[expert.expert][:,1,0] - preds[expert.expert][:,2,0])
+
+    overall = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
+
+    loss_overall = expert.crit(overall[:,1], overall[:,2])
+    std_overall = torch.std(overall[:,1,0] - overall[:,2,0])
+
+    return loss_overall, std_overall, loss, std
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
@@ -104,4 +146,6 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
 
     with open(os.path.join(path, "weights.json"), "w") as f:
         json.dump(exps, f)
+
+# TODO: add function to load network from checkpoint and from json
 

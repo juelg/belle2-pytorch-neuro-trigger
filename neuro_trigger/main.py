@@ -1,6 +1,8 @@
 import argparse
 from datetime import datetime
 from email.mime import base
+import itertools
+import json
 import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -13,7 +15,7 @@ import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 
-from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions, expert_weights_json, save_predictions_pickle, snap_source_state
+from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
 
 
 # train = "/home/tobi/neurotrigger/train1"
@@ -121,11 +123,6 @@ def prepare_vars(config, debug=False):
     if not Path(log_folder).exists():
         Path(log_folder).mkdir(parents=True)
 
-    if not debug:
-        # force a short experiment description
-        with open(os.path.join(log_folder, "desc.txt"), "w") as f:
-            f.write(f"Config description: {hparams.description}")
-        os.system(f"vim {os.path.join(log_folder, 'desc.txt')}")
 
 
     logging.basicConfig(
@@ -172,7 +169,16 @@ def main(config, data, debug=False):
     hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug)
 
     # save git commit and git diff in file
-    snap_source_state(log_folder)
+    hparams["git_id"] = snap_source_state(log_folder)
+
+    if not debug:
+        # force a short experiment description
+        hparams["run_description"] = input("Experiment run description: ")
+        with open(os.path.join(log_folder, "summary.json"), "w") as f:
+            json.dump(hparams, f, indent=2, sort_keys=True)
+
+            # f.write(f"Config description: {hparams.description}")
+        # os.system(f"vim {os.path.join(log_folder, 'desc.txt')}")
 
     trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version) for expert_i in range(len(experts))]
 
@@ -192,13 +198,35 @@ def main(config, data, debug=False):
             t.join()
     # create dataset with predictions
     expert_modules = [i[1] for i in trainers_modules]
-    create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
-    create_dataset_with_predictions(expert_modules, path=log_folder, mode="test", re_init=True)
-    expert_weights_json(expert_modules, path=log_folder)
 
-    save_predictions_pickle(expert_modules, path=log_folder, mode="train")
-    save_predictions_pickle(expert_modules, path=log_folder, mode="val")
-    save_predictions_pickle(expert_modules, path=log_folder, mode="test")
+
+    loss = {"train": {"filtered": {}, "unfiltered": {}}, "val": {"filtered": {}, "unfiltered": {}}, "test": {"filtered": {}, "unfiltered": {}}}
+    for re_init, mode in itertools.product([True, False], ["train", "val", "test"]):
+        name_extension = "_unfiltered" if re_init else "filtered"
+        preds = create_dataset_with_predictions_per_expert(expert_modules, mode=mode, re_init=True)
+        save_csv_dataset_with_predictions(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
+        save_predictions_pickle(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
+        # loss_overall, std_overall, loss, std 
+        loss[mode]["unfiltered" if re_init else "filtered"]["loss_overall"],
+        loss[mode]["unfiltered" if re_init else "filtered"]["std_overall"],
+        loss[mode]["unfiltered" if re_init else "filtered"]["loss"],
+        loss[mode]["unfiltered" if re_init else "filtered"]["std"] = get_loss(expert_modules, preds)
+
+    with open(os.path.join(log_folder, "summary.json"), "r") as f:
+        summary = json.read(f)
+    summary["loss"] = loss
+    with open(os.path.join(log_folder, "summary.json"), "w") as f:
+        json.dump(summary, f, indent=2, sort_keys=True)
+    
+
+
+    # create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
+    # create_dataset_with_predictions(expert_modules, path=log_folder, mode="test", re_init=True)
+    # expert_weights_json(expert_modules, path=log_folder)
+
+    # save_predictions_pickle(expert_modules, path=log_folder, mode="train")
+    # save_predictions_pickle(expert_modules, path=log_folder, mode="val")
+    # save_predictions_pickle(expert_modules, path=log_folder, mode="test")
 
 
 def parse_args():
