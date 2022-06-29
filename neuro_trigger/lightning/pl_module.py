@@ -57,18 +57,6 @@ class NeuroTrigger(pl.LightningModule):
                             dist=dist, n_buckets=self.hparams.dist.n_buckets))
 
 
-        # if self.expert == -1:
-        #     self.data = [BelleIIBetter(
-        #         data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
-        # elif self.hparams.get("dist", False):
-        #     dist = get_dist_func(self.hparams.dist)
-        #     self.data [BelleIIBetterExpertDist(dist, self.expert, data[i], n_buckets=self.hparams.dist.n_buckets, logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr)]
-        #     self.data = [BelleIIBetterExpert(self.expert, data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in [1, 2]]
-        # else:
-        #     self.data = [BelleIIBetterExpert(self.expert,
-        #                                      data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
-
-
         # to see model and crit have a look into the dict defined in __init__.py
         self.crit = crits[self.hparams.loss]
         self.save_hyperparameters()
@@ -125,7 +113,6 @@ class NeuroTrigger(pl.LightningModule):
         mode = {"train": 0, "val": 1, "test": 2}[mode]
         # output dataset -> no, do this for all experts outside of the training
         # create plots
-        # outputs = []
         ys = []
         y_hats = []
         y_hat_olds = []
@@ -134,11 +121,9 @@ class NeuroTrigger(pl.LightningModule):
             for i in d:
                 x, y, y_hat_old = i[0], i[1], i[2]
                 y_hat = self.model(x)
-                # outputs.append((y, y_hat, y_hat_old))
                 ys.append(y)
                 y_hats.append(y_hat)
                 y_hat_olds.append(y_hat_old)
-        # pred_data = torch.cat(outputs)
         ys = torch.cat(ys)
         y_hats = torch.cat(y_hats)
         y_hat_olds = torch.cat(y_hat_olds)

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import torch
 
 
-
 # Ideas: dataset filters not via functions but via boolean vector: which is included which is not
 # -> in that case experts can also be just a filter
 # factory: the dataset should return datasets itself, so like a meta object or meta class
@@ -17,7 +16,6 @@ def index2mask_array(index_array, n):
     mask_array = torch.zeros(n, dtype=int)
     mask_array[index_array] = 1
     return mask_array.bool()
-
 
 
 

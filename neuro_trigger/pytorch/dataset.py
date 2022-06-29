@@ -3,51 +3,13 @@ from typing import Optional, Union, List
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
-import linecache
-from multiprocessing import Pool
-import time
 from pathlib import Path
 import os
 import logging
-import gzip
 import numpy as np
-from abc import ABC
 from neuro_trigger.pytorch import dataset_filters
 
 import hashlib
-
-# class filters:
-#     # filter function
-#     @staticmethod
-#     def filter_max_2_events(data):
-#         b_idx = data["ntracks"] > 2
-#         for key in data:
-#             data[key] = data[key][~b_idx]
-#         return data
-
-#     @staticmethod
-#     def filter_duplicate_events(data):
-#         # create map event,y -> tracks
-#         event_map = {}
-#         for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
-#             ey = f"{e},{y[0]},{y[1]}"
-#             if ey not in event_map:
-#                 event_map[ey] = []
-#             event_map[ey].append(idx)
-#         keep_idx = []
-#         for key, value in event_map.items():
-#             keep_idx.append(value[0])
-#         keep_idx = np.array(keep_idx)
-
-#         for key in data:
-#             data[key] = data[key][keep_idx]
-
-#         return data
-
-#     @staticmethod
-#     def no_filter(data):
-#         return data
-
 
 def md5(fname):
     hash_md5 = hashlib.md5()
@@ -151,7 +113,6 @@ class BelleIIDataManager:
         filter = filter or dataset_filters.IdenityFilter
         dataset_class = dataset_class or BelleIIDataset
 
-        # data = self.data[torch.where(filter.fltr(self.data))]
         keep = torch.where(filter.fltr(self.data))
 
         data = {key: val[keep] for key, val in self.data.items()}
@@ -223,34 +184,6 @@ class BelleIIDataset(Dataset):
     def requires_shuffle(self):
         return True
 
-
-# class BelleIIBetterExpert(BelleIIBetter):
-#     def __init__(self, expert: int, *args, **kwargs) -> None:
-#         self.expert = expert
-#         super().__init__(*args, **kwargs)
-
-#         # # filter out all samples that do not belong to this expert
-#         # # create index map
-#         # keep = torch.where(self.data["expert"] == self.expert)
-#         # # overwrite in order to get back memory from unused data
-#         # self.data = {key: val[keep] for key, val in self.data.items()}
-#         # # senity check
-#         # assert (self.data["expert"] == self.expert).all()
-
-#         self.logger.debug(
-#             f"Dataset {self.path} expert #{self.expert} with length {len(self)} done init")
-
-#     def init_data(self, filter=None, compare_to=None):
-#         super().init_data(filter, compare_to)
-
-#         # filter out all samples that do not belong to this expert
-#         # create index map
-#         keep = torch.where(self.data["expert"] == self.expert)
-#         # overwrite in order to get back memory from unused data
-#         self.data = {key: val[keep] for key, val in self.data.items()}
-#         # senity check
-#         assert (self.data["expert"] == self.expert).all()
-
 class BelleIIDistDataset(BelleIIDataset):
     # TODO: should this return batches?
 
@@ -299,8 +232,6 @@ class BelleIIDistDataset(BelleIIDataset):
 
     def __getitem__(self, _):
         # sample a bucket
-        # print(self.probs)
-        # print(sum(self.probs))
         bucket = np.random.choice(self.bucket_idx, p=self.probs)
 
         # sample uniformly from that bucket
