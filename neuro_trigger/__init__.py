@@ -25,6 +25,9 @@ models = {
     "SimpleModel": model.SimpleModel,
 }
 
+# definition of supported optimizers
+supported_optimizers = ("Adam", "Rprob", "SGD")
+
 act_fun = {
     "tanh": torch.nn.Tanh(),
     "tanh/2": LambdaModule(lambda x: torch.tanh(x/2)),

@@ -164,7 +164,10 @@ class NeuroTrigger(pl.LightningModule):
                           drop_last=True, pin_memory=True)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
-        # definition of supported optimizers
+
+        if self.hparams.optim not in supported_optimizers:
+            raise RuntimeError(f"Optimizer {self.hparams.optim} is not supported! __init__.py defines supported optimizers.")
+
         if self.hparams.optim == "Adam":
             return optim.Adam(self.model.parameters(), self.hparams.learning_rate, weight_decay=self.hparams.weight_decay)
         elif self.hparams.optim == "Rprob":
@@ -172,5 +175,5 @@ class NeuroTrigger(pl.LightningModule):
         elif self.hparams.optim == "SGD":
             return optim.SGD(self.model.parameters(), self.hparams.learning_rate, momentum=0.9)
         else:
-            raise RuntimeError(f"Optimizer {self.hparams.optim} is not defined!")
+            raise RuntimeError(f"Optimizer {self.hparams.optim} supported but not defined!")
 
