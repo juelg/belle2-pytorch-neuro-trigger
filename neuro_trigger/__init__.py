@@ -45,7 +45,7 @@ def get_dist_func(conf_key):
     if "norm" in conf_key:
         return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
     elif "uniform" in conf_key:
-        return norm(loc=conf_key["norm"]["lower"], scale=conf_key["norm"]["upper"])
+        return uniform(loc=conf_key["uniform"]["lower"], scale=conf_key["uniform"]["upper"])
 
 
 
