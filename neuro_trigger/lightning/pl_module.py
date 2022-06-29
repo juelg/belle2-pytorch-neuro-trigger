@@ -1,18 +1,21 @@
+import functools
 import json
 import os
 from typing import Dict, Optional, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from neuro_trigger.pytorch.dataset import BelleIIBetter, BelleIIBetterExpert, BelleIIBetterExpertDist
+from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
 from torch.utils.data import DataLoader
 from neuro_trigger import utils
+from neuro_trigger import supported_optimizers
 from neuro_trigger.visualize import Visualize
 import logging
 from easydict import EasyDict
 import copy
-from neuro_trigger import crits, models, act_fun, filter_funcs, get_dist_func
+from neuro_trigger import crits, models, act_fun, get_dist_func
 import numpy as np
+from neuro_trigger.pytorch.dataset_filters import *
 
 def init_weights(m: torch.nn.Module, act: str):
     if isinstance(m, torch.nn.Linear):
@@ -22,7 +25,7 @@ def init_weights(m: torch.nn.Module, act: str):
 
 class NeuroTrigger(pl.LightningModule):
 
-    def __init__(self, hparams: EasyDict, data: BelleIIBetter, log_path: Optional[str] = None, expert: int = -1):
+    def __init__(self, hparams: EasyDict, data: List[str], log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
         self.expert = expert
         self.log_path = log_path
@@ -33,22 +36,38 @@ class NeuroTrigger(pl.LightningModule):
         self.file_logger = logging.getLogger()
 
 
-        fltr = filter_funcs[self.hparams.get("filter", "no_filter")]
+        try:
+            self.fltr = eval(self.hparams.get("filter", "IdenityFilter()"))
+            if not isinstance(self.fltr, Filter):
+                raise RuntimeError()
+        except:
+            self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
 
         if hparams.compare_to:
-            compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1)) for i in range(3)]
+            compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1, "")) for i in range(3)]
         else:
             compare_to = [None, None, None]
-        if self.expert == -1:
-            self.data = [BelleIIBetter(
-                data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
-        elif self.hparams.get("dist", False):
+
+        self.data_mgrs = [BelleIIDataManager(data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+        # TODO get_expert_dataset can be used for this
+        self.data = [mgr.expert_dataset(expert=self.expert, filter=self.fltr) for mgr in self.data_mgrs]
+        if self.hparams.get("dist", False):
             dist = get_dist_func(self.hparams.dist)
-            self.data [BelleIIBetterExpertDist(dist, self.expert, data[i], n_buckets=self.hparams.dist.n_buckets, logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr)]
-            self.data = [BelleIIBetterExpert(self.expert, data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in [1, 2]]
-        else:
-            self.data = [BelleIIBetterExpert(self.expert,
-                                             data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
+            self.data[0] = self.data_mgrs[0].expert_dataset(expert=self.expert, dataset_class=functools.partial(BelleIIDistDataset,
+                            dist=dist, n_buckets=self.hparams.dist.n_buckets))
+
+
+        # if self.expert == -1:
+        #     self.data = [BelleIIBetter(
+        #         data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
+        # elif self.hparams.get("dist", False):
+        #     dist = get_dist_func(self.hparams.dist)
+        #     self.data [BelleIIBetterExpertDist(dist, self.expert, data[i], n_buckets=self.hparams.dist.n_buckets, logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr)]
+        #     self.data = [BelleIIBetterExpert(self.expert, data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in [1, 2]]
+        # else:
+        #     self.data = [BelleIIBetterExpert(self.expert,
+        #                                      data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i], fltr=fltr) for i in range(3)]
+
 
         # to see model and crit have a look into the dict defined in __init__.py
         self.crit = crits[self.hparams.loss]
@@ -56,6 +75,11 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug(
             f"DONE init expert {self.expert} with loss '{self.hparams.loss}' and model '{self.hparams.model}'")
+
+    def get_expert_dataset(self, filter=None, split=0):
+        # filter = None means original filter
+        filter = filter or self.fltr
+        return self.data_mgrs[split].expert_dataset(expert=self.expert, filter=filter)
 
     def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]):
         expert_hparams = copy.deepcopy(hparams)

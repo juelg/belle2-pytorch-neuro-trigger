@@ -16,7 +16,7 @@ import scipy.stats
 from torch.utils.data import Dataset
 import pytorch_lightning as pl
 
-from neuro_trigger.pytorch.dataset import BelleIIBetter
+from neuro_trigger.pytorch.dataset import BelleIIDataset
 from pathlib import Path
 from pytorch_lightning.loggers.base import DummyLogger
 
@@ -67,7 +67,7 @@ class Visualize:
         self.create_plots(
             self.data.data["y"], self.data.data["y_hat_old"], suffix="-old", save=save)
         y = self.data.data["y"][:self.MAX_SAMPLES]
-        y = BelleIIBetter.to_physics(y)
+        y = BelleIIDataset.to_physics(y)
         self.hist_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
 
     def plot(self, name, fig, save=None):
@@ -95,7 +95,7 @@ class Visualize:
             self.create_baseline_plots(save=save)
 
         y, y_hat = y.cpu()[:self.MAX_SAMPLES], y_hat.cpu()[:self.MAX_SAMPLES]
-        y, y_hat = BelleIIBetter.to_physics(y), BelleIIBetter.to_physics(y_hat)
+        y, y_hat = BelleIIDataset.to_physics(y), BelleIIDataset.to_physics(y_hat)
         for plot_f in self.plots:
             plot_f(y, y_hat, suffix, save=save)
         plt.close('all')
@@ -131,8 +131,8 @@ class Visualize:
                title="z0 reco vs z0 nnhw")
         ax.axis('square')
         ax.set_aspect('equal', adjustable='box')
-        ax.set_xlim(BelleIIBetter.Z_SCALING) # [-100, 100]
-        ax.set_ylim(BelleIIBetter.Z_SCALING)
+        ax.set_xlim(BelleIIDataset.Z_SCALING) # [-100, 100]
+        ax.set_ylim(BelleIIDataset.Z_SCALING)
 
         self.plot(f"z-plot{suffix}", fig, save=save)
 
@@ -159,7 +159,7 @@ class Visualize:
         ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
         ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
         ax.set(xlabel="z(Reco-Neuro)")
-        ax.set_xlim(BelleIIBetter.Z_SCALING)
+        ax.set_xlim(BelleIIDataset.Z_SCALING)
         ax.legend()
         ax.grid()
         self.plot(f"z-diff{suffix}", fig, save=save)

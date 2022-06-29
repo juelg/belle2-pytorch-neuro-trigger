@@ -24,11 +24,13 @@ Versions are tagged in git under v0.x
 - [x] create pickle file with z, theta predictions after training for future comparision
 - [x] dont use dataset predictions but optionally the ones from older trainings
 - [ ] able to compare not only with one specified, but also with others -> that should probably be a command line tool (after training)
-- [ ] file with single output number -> over all experts and per expert and maybe compare to previous
-- [ ] distribution sampling with in config: distribution should be configurable
+- [x] file with single output number -> over all experts and per expert and maybe compare to previous
+- [x] distribution sampling with in config: distribution should be configurable
 - [x] organize main better and support cmd args
 - [x] global experiment log
 - [x] filter functions
+- [x] native filter datasets
+- [ ] config as python objects
 
 
 ideas from kai

@@ -2,7 +2,6 @@
 __version__ = 0.4
 import torch
 import neuro_trigger.pytorch.model as model
-from neuro_trigger.pytorch.dataset import filters 
 from scipy.stats import norm, uniform
 
 class LambdaModule(torch.nn.Module):
@@ -38,11 +37,6 @@ act_fun = {
     "selu": torch.nn.SELU(),
 }
 
-filter_funcs = {
-    "filter_max_2_events": filters.filter_max_2_events,
-    "filter_duplicate_events": filters.filter_duplicate_events,
-    "no_filter": filters.no_filter,
-}
 
 def get_dist_func(conf_key):
     if "norm" in conf_key:

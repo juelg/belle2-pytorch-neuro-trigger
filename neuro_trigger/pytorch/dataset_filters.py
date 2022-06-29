@@ -37,14 +37,14 @@ class ConCatFilter(Filter):
         # vectors for data to keep
         keep_vecs = [filter.fltr(data) for filter in self.filters]
         # AND the keep vectors
-        out = torch.ones(len(data), dtype=torch.bool)
+        out = torch.ones(len(data['x']), dtype=torch.bool)
         for vec in keep_vecs:
             out &= vec
         return out
 
 class IdenityFilter(Filter):
     def fltr(self, data):
-        return torch.ones(len(data)).bool()
+        return torch.ones(len(data['x'])).bool()
 
 
 class ExpertFilter(Filter):
@@ -54,7 +54,7 @@ class ExpertFilter(Filter):
     def fltr(self, data):
         if self.expert == -1:
             # no expert filter should be applied in that case
-            return torch.ones(len(data)).bool()
+            return torch.ones(len(data['x'])).bool()
         return data["expert"] == self.expert
 
 

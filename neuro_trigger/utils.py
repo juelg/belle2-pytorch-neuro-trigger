@@ -1,16 +1,16 @@
-from ast import Dict
 from collections import OrderedDict
 import copy
 import json
 import logging
 from lzma import MODE_FAST
 import os
-from typing import List
+from typing import Iterable, List, Dict, Optional
 from pytorch_lightning import LightningModule
 from torch.utils.data import DataLoader
 import numpy as np
 
 import torch    
+
 
 CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
 
@@ -44,28 +44,33 @@ def snap_source_state(log_folder: str):
         return f.read()
 
 
-def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode="val", re_init=False) -> Dict[int, torch.tensor]:
+def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode="val", filter=None) -> Dict[int, torch.tensor]:
+    # None means original filters
     mode = MODE2IN[mode]
     preds = {}
     for expert in expert_pl_modules:
         preds[expert.expert] = []
         expert.eval()
         with torch.no_grad():
-            if re_init:
-                da = copy.deepcopy(expert.data[mode])
-                # if compare_to no set, it will take the very original one
-                da.init_data(filter=None, compare_to=da.compare_to)
-                d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
-            else:
-                d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+            # if re_init:
+            #     da = copy.deepcopy(expert.data[mode])
+            #     # if compare_to no set, it will take the very original one
+            #     da.init_data(filter=None, compare_to=da.compare_to)
+            #     d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
+            # else:
+            #     d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+
+
+            d = DataLoader(expert.get_expert_dataset(split=mode, filter=filter), batch_size=10000, num_workers=0, drop_last=False)
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
                 # dataset.append((idx, y_hat))
-                preds[expert.expert].append((idx, y_hat, y, expert))
+                preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y], dim=1))
 
     for expert in expert_pl_modules:
-        # cat and not stack because we have batches
+        # cat and not stack because we have batches -> bullshit: stack adds to the same dimension, cat creates a new one (like tuple) -> bullshit bullshit
+        # first one was correct
         preds[expert.expert] = torch.cat(preds[expert.expert])
     return preds
 
@@ -91,13 +96,13 @@ def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], 
     # data = torch.cat([i[1] for i in dataset])
 
     idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
-    data = torch.cat([preds[expert.expert][:,1] for expert in expert_pl_modules])
+    data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
 
-    data_arr = expert_pl_modules[0].data[mode].get_data_array()
+    data_arr = expert_pl_modules[0].data_mgrs[mode].open()
     new_arr = np.zeros((data_arr.shape[0], data_arr.shape[1] + 2))
     new_arr[:,:-2] = data_arr
     for i in range(len(data)):
-        new_arr[idxs[i],-2:] = data[i]
+        new_arr[idxs[i].int().item(),-2:] = data[i]
 
     fname = f"pred_data_random{mode+1}{name_extension}.csv"
 
@@ -122,15 +127,15 @@ def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.te
     loss = {}
     std = {}
     for expert in expert_pl_modules:
-        loss[expert.expert] = expert.crit(preds[expert.expert][:,1], preds[expert.expert][:,2])
-        std[expert.expert] = torch.std(preds[expert.expert][:,1,0] - preds[expert.expert][:,2,0])
+        loss[expert.expert] = expert.crit(preds[expert.expert][:,1], preds[expert.expert][:,2]).item()
+        std[expert.expert] = torch.std(preds[expert.expert][:,1] - preds[expert.expert][:,2]).item()
 
     overall = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
 
     loss_overall = expert.crit(overall[:,1], overall[:,2])
-    std_overall = torch.std(overall[:,1,0] - overall[:,2,0])
+    std_overall = torch.std(overall[:,1] - overall[:,2])
 
-    return loss_overall, std_overall, loss, std
+    return loss_overall.item(), std_overall.item(), loss, std
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
