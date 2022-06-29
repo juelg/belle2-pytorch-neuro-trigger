@@ -1,6 +1,5 @@
 import argparse
 from datetime import datetime
-from email.mime import base
 import itertools
 import json
 import threading
@@ -201,6 +200,8 @@ def main(config, data, debug=False):
 
     logger.info("Creating prediction datasets")
     loss = {"train": {"filtered": {}, "unfiltered": {}}, "val": {"filtered": {}, "unfiltered": {}}, "test": {"filtered": {}, "unfiltered": {}}}
+
+    expert_weights_json(expert_modules, path=os.path.join(log_folder, "weights.json"))
 
     for filtered, mode in itertools.product([True, False] if hparams.get("filter") else [False], ["train", "val", "test"]):
         name_extension = "_filtered" if filtered else ""
