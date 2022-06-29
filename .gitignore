@@ -3,7 +3,6 @@ __pycache__
 log
 log_old
 log_longrun
-.vscode
 lightning_logs
 venv
 questions.md
@@ -12,3 +11,5 @@ notes.md
 data
 json_weights
 *.csv
+current_issues.md
+*.diff
