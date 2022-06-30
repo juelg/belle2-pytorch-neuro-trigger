@@ -1,4 +1,5 @@
 import math
+import random
 from typing import Optional, Union, List
 from torch.utils.data import Dataset
 from pathlib import Path
@@ -110,7 +111,7 @@ class BelleIIDataManager:
     def dataset(self, filter=None, dataset_class=None):
         # default values
         self.logger.debug(f"Size before filter: {len(self)}")
-        filter = filter or dataset_filters.IdenityFilter
+        filter = filter or dataset_filters.IdenityFilter()
         dataset_class = dataset_class or BelleIIDataset
 
         keep = torch.where(filter.fltr(self.data))
@@ -120,7 +121,7 @@ class BelleIIDataManager:
         return dataset_class(data)
 
     def expert_dataset(self, expert=-1, filter=None, dataset_class=None):
-        filter = filter or dataset_filters.IdenityFilter
+        filter = filter or dataset_filters.IdenityFilter()
         filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
         dataset = self.dataset(filter, dataset_class)
         self.logger.debug(
@@ -235,7 +236,13 @@ class BelleIIDistDataset(BelleIIDataset):
         bucket = np.random.choice(self.bucket_idx, p=self.probs)
 
         # sample uniformly from that bucket
-        idx = np.random.choice(self.buckets[bucket])
+        b = self.buckets[bucket]
+        idx = self.uniform_random_choice(b)
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
+    def uniform_random_choice(self, a):
+        # Note somehow np.random.choice scales very badly for large arrays
+        # so we rather do the two lines our self
+        idx = random.randint(0, len(a)-1)
+        return a[idx]
 

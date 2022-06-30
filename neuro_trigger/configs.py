@@ -2,6 +2,22 @@ from easydict import EasyDict
 import copy
 
 configs = {
+
+    "normal_distribution": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with normal distribution dataloader",
+        "workers": 20,
+        "dist": {
+            "n_buckets": 11,
+            "norm": {
+                    "mean": 0,
+                    "std": 0.4,
+                },
+            },
+    },
+
+
     "baseline_v4_softsign": {
         # improving: 
         "extends": "baseline_v3",

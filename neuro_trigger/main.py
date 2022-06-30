@@ -57,7 +57,7 @@ def fit(trainer_module, logger):
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, fast_dev_run=False, overfit_batches = 0.0):
+def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, fast_dev_run=False, overfit_batches = 0.0, debug=False):
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
@@ -90,14 +90,14 @@ def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, versi
         max_epochs=hparams["epochs"],
         deterministic=True,
         # log_every_n_steps=1,
-        # profiler=True,
+        profiler="simple" if debug else None,
         fast_dev_run=fast_dev_run,
         overfit_batches=overfit_batches,
         # gpus=[gpu_idx], #[0, 1],
         default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
         # auto_select_gpus=True,
         # enable_pl_optimizer=True,
-        enable_progress_bar=False,
+        enable_progress_bar=debug,
     )
     return trainer, pl_module
 
@@ -105,12 +105,12 @@ def write_global_journal(base_log, config, journal_name="log.txt"):
     with open(os.path.join(base_log, journal_name), "a") as f:
         f.write(f"{datetime.now()}: {config}\n")
 
-def prepare_vars(config, debug=False):
+def prepare_vars(config, debug=False, solo_expert=False):
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
     hparams = get_hyperpar_by_name(config)
     if debug:
-        hparams["epochs"] = 3
-    experts = hparams.experts if not debug else [-1] #[0, 1, 2, 3, 4]
+        hparams["epochs"] = 2
+    experts = hparams.experts if not solo_expert else [-1] #[0, 1, 2, 3, 4]
 
     experts_str = [f"expert_{i}" for i in experts]
     logger = logging.getLogger()
@@ -165,8 +165,8 @@ def prepare_vars(config, debug=False):
     return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config, data, debug=False):
-    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug)
+def main(config, data, debug=False, solo_expert=False):
+    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert)
 
     # save git commit and git diff in file
     hparams["git_id"] = snap_source_state(log_folder)
@@ -178,7 +178,7 @@ def main(config, data, debug=False):
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(hparams, f, indent=2, sort_keys=True)
 
-    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version) for expert_i in range(len(experts))]
+    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, debug=debug) for expert_i in range(len(experts))]
 
     if len(experts) == 1:
         fit(trainer_module=trainers_modules[0], logger=logger)
@@ -201,7 +201,7 @@ def main(config, data, debug=False):
     logger.info("Creating prediction datasets")
     loss = {"train": {"filtered": {}, "unfiltered": {}}, "val": {"filtered": {}, "unfiltered": {}}, "test": {"filtered": {}, "unfiltered": {}}}
 
-    expert_weights_json(expert_modules, path=os.path.join(log_folder, "weights.json"))
+    expert_weights_json(expert_modules, path=log_folder)
 
     for filtered, mode in itertools.product([True, False] if hparams.get("filter") else [False], ["train", "val", "test"]):
         name_extension = "_filtered" if filtered else ""
@@ -220,16 +220,9 @@ def main(config, data, debug=False):
     summary["loss"] = loss
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2, sort_keys=True)
+
+    return log_folder
     
-
-
-    # create_dataset_with_predictions(expert_modules, path=log_folder, mode="test")
-    # create_dataset_with_predictions(expert_modules, path=log_folder, mode="test", re_init=True)
-    # expert_weights_json(expert_modules, path=log_folder)
-
-    # save_predictions_pickle(expert_modules, path=log_folder, mode="train")
-    # save_predictions_pickle(expert_modules, path=log_folder, mode="val")
-    # save_predictions_pickle(expert_modules, path=log_folder, mode="test")
 
 
 def parse_args():
@@ -248,4 +241,4 @@ if __name__ == "__main__":
     debug = not args.production
     print(debug)
     # main(config = "baseline_v4_softsign", data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
-    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
+    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=debug)
