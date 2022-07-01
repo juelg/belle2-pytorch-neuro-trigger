@@ -14,7 +14,7 @@ import torch
 # helper functions
 def index2mask_array(index_array, n):
     mask_array = torch.zeros(n, dtype=int)
-    mask_array[index_array] = 1
+    mask_array[index_array.long()] = 1
     return mask_array.bool()
 
 
@@ -58,7 +58,26 @@ class ExpertFilter(Filter):
 
 class Max2EventsFilter(Filter):
     def fltr(self, data):
-        return data["ntracks"] > 2
+        # return data["ntracks"] <= 2
+        # create map event -> y -> tracks
+        event_map = {}
+        for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
+            ey = f"{e}"
+            k = f"{y[0]},{y[1]}"
+            if ey not in event_map:
+                event_map[ey] = {}
+            if k not in event_map[ey]:
+                event_map[ey][k] = []
+            event_map[ey][k].append(idx)
+        keep_idx = []
+        for event, value in event_map.items():
+            if len(value) <=2:
+                for key, value in event_map[event].items():
+                    keep_idx += value
+                # keep_events.append(event)
+
+        keep_idx = torch.Tensor(keep_idx)
+        return index2mask_array(keep_idx, len(data['x']))
 
 class DuplicateEventsFilter(Filter):
     def fltr(self, data):
@@ -74,4 +93,4 @@ class DuplicateEventsFilter(Filter):
             keep_idx.append(value[0])
         keep_idx = torch.Tensor(keep_idx)
 
-        return index2mask_array(keep_idx, len(data))
+        return index2mask_array(keep_idx, len(data['x']))

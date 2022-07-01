@@ -52,6 +52,7 @@ class DatasetPath:
 
 
 
+# TODO: support for merging several files
 # TODO: should this also manage dataset versions and dataset splits -> yes splits would definatly make sense
 # TODO: add preprocessing, maybe pytorch transformers
 class BelleIIDataManager:
@@ -157,6 +158,8 @@ class BelleIIDataset(Dataset):
         return len(self.data["x"])
 
     def __getitem__(self, idx: int):
+        if idx >= len(self):
+            raise IndexError()
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
     @staticmethod
@@ -231,7 +234,9 @@ class BelleIIDistDataset(BelleIIDataset):
         # does not require further shuffeling by the dataloader
         return False
 
-    def __getitem__(self, _):
+    def __getitem__(self, idx):
+        if idx >= len(self):
+            raise IndexError()
         # sample a bucket
         bucket = np.random.choice(self.bucket_idx, p=self.probs)
 

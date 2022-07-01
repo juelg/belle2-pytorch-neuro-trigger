@@ -1,11 +1,14 @@
+from functools import partial
 import logging
 import unittest
 import sys
+import numpy as np
 
 import torch
 from neuro_trigger import main
-from neuro_trigger.pytorch.dataset import BelleIIDataManager
+from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
 from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdenityFilter, Max2EventsFilter, index2mask_array
+from scipy.stats import norm, uniform
 sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 
 from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
@@ -108,6 +111,52 @@ class FilterTest(unittest.TestCase):
         le = 15
         self.assertEqual(le, len(d))
 
+
+class WeightedSamplerTest(unittest.TestCase):
+    TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
+
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger(), dataclass=partial(BelleIIDistDataset,
+    #             dist=norm(loc=-1, scale=1), n_buckets=11))
+    #     return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
+    # elif "uniform" in conf_key:
+    #     return uniform(loc=conf_key["uniform"]["lower"], scale=conf_key["uniform"]["upper"])
+
+    def test_distuniform(self):
+        dist = uniform(loc=-1, scale=2)
+        n_buckets=4
+        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
+                dist=dist, n_buckets=n_buckets))
+        z = [i[1][0].item() for i in d]
+        hist, bin_edges = np.histogram(z, n_buckets, range=(-1, 1))
+        hist = hist / np.sum(hist)
+
+        # compare to expected values
+        for idx, h in enumerate(hist):
+            # p = dist.cdf(bin_edges[idx+1]) - dist.cdf(bin_edges[idx])
+            # p = d.get_bounds(idx)
+            p = dist.cdf(d.get_bounds(idx)[1]) - dist.cdf(d.get_bounds(idx)[0])
+            self.assertTrue(abs(p - h) < 0.1)
+            # TODO: check if the they are actually from the same bucket
+
+    def test_distnorm(self):
+        dist = norm(loc=0, scale=0.6)
+        n_buckets=4
+        # np.random.seed(1234)
+        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
+                dist=dist, n_buckets=n_buckets))
+        z = [i[1][0].item() for i in d]
+        hist, bin_edges = np.histogram(z, n_buckets, range=(-1, 1))
+        hist = hist / np.sum(hist)
+
+        # compare to expected values
+        for idx, h in enumerate(hist):
+            # p = dist.cdf(bin_edges[idx+1]) - dist.cdf(bin_edges[idx])
+            p = dist.cdf(d.get_bounds(idx)[1]) - dist.cdf(d.get_bounds(idx)[0])
+            self.assertTrue(abs(p - h) < 0.1)
 
 
 if __name__ == '__main__':
