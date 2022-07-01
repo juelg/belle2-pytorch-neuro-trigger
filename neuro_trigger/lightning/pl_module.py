@@ -5,7 +5,8 @@ from typing import Dict, Optional, List, Tuple, Union
 import pytorch_lightning as pl
 import torch
 from torch import optim
-from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
+from neuro_trigger.pytorch import dataset_filters
+from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDataset, BelleIIDistDataset
 from torch.utils.data import DataLoader
 from neuro_trigger import utils
 from neuro_trigger import supported_optimizers
@@ -15,7 +16,6 @@ from easydict import EasyDict
 import copy
 from neuro_trigger import crits, models, act_fun, get_dist_func
 import numpy as np
-from neuro_trigger.pytorch.dataset_filters import *
 
 def init_weights(m: torch.nn.Module, act: str):
     if isinstance(m, torch.nn.Linear):
@@ -27,6 +27,7 @@ class NeuroTrigger(pl.LightningModule):
 
     def __init__(self, hparams: EasyDict, data: List[str], log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
+        # self.data_mgrs = data_mgrs
         self.expert = expert
         self.log_path = log_path
         self.hparams.update(self.extract_expert_hparams(hparams))
@@ -36,9 +37,10 @@ class NeuroTrigger(pl.LightningModule):
         self.file_logger = logging.getLogger()
 
 
+        self.fltr = None
         try:
             self.fltr = eval(self.hparams.get("filter", "IdenityFilter()"))
-            if not isinstance(self.fltr, Filter):
+            if not isinstance(self.fltr, dataset_filters.Filter):
                 raise RuntimeError()
         except:
             self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
@@ -48,11 +50,15 @@ class NeuroTrigger(pl.LightningModule):
         else:
             compare_to = [None, None, None]
 
+        # TODO: this should be created in main to avoid several loading into ram -> for some reason pl gets stuck if
+        # we pull data_mgrs out to the main loop
         self.data_mgrs = [BelleIIDataManager(data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
-        # TODO get_expert_dataset can be used for this
-        self.data = [mgr.expert_dataset(expert=self.expert, filter=self.fltr) for mgr in self.data_mgrs]
+        self.data = [self.get_expert_dataset(split=split) for split in range(len(self.data_mgrs))]
+
         if self.hparams.get("dist", False):
+            # for distribution sampling: use different dataset class
             dist = get_dist_func(self.hparams.dist)
+            # use currying (partial evaluation) to curry in the wanted parameters
             self.data[0] = self.data_mgrs[0].expert_dataset(expert=self.expert, dataset_class=functools.partial(BelleIIDistDataset,
                             dist=dist, n_buckets=self.hparams.dist.n_buckets))
 
@@ -64,26 +70,48 @@ class NeuroTrigger(pl.LightningModule):
         self.file_logger.debug(
             f"DONE init expert {self.expert} with loss '{self.hparams.loss}' and model '{self.hparams.model}'")
 
-    def get_expert_dataset(self, filter=None, split=0):
-        # filter = None means original filter
-        filter = filter or self.fltr
+    def get_expert_dataset(self, filter: Optional[dataset_filters.Filter] = None, split: int = 0) -> BelleIIDataset:
+        """Returns dataset with the given filter for the given split
+
+        Args:
+            filter (Optional[dataset_filters.Filter], optional): Filter that should be applied to the dataset. See ... for possible filters.
+                If the this value is None, self.fltr will be used as filters. If you want to use no filters at all use the IdentityFilter. Defaults to None.
+            split (int, optional): Dataset split to use (train, val, test but in numeric form). Defaults to 0.
+
+        Returns:
+            BelleIIDataset: BelleIIDataset filtered to the given expert and the given filters.
+        """
+        filter = filter or self.fltr or dataset_filters.IdenityFilter()
         return self.data_mgrs[split].expert_dataset(expert=self.expert, filter=filter)
 
-    def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]):
+    def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]) -> Union[Dict, EasyDict]:
+        """Extracts the hyperparameters which are expert specific and overwrites potentially
+        confliciting parameters with these.
+
+        Args:
+            hparams (Union[Dict, EasyDict]): Old hyperparemter dict with expert specific parameters
+
+        Returns:
+            Union[Dict, EasyDict]: New hyperparameter dict.
+        """
         expert_hparams = copy.deepcopy(hparams)
         new_expert_hparams = hparams.get(self.exp_str, {})
         expert_hparams.update(new_expert_hparams)
         return expert_hparams
 
     @property
-    def exp_str(self):
+    def exp_str(self) -> str:
+        """Unique identifier for the expert
+        """
         return f"expert_{self.expert}"
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Model forward pass
+        """
         return self.model(x)
 
 
-    def training_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
+    def training_step(self, batch: Tuple[torch.Tensor], batch_idx: int) -> torch.tensor:
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         # TODO set more weight on z for learning and the loss function
@@ -91,7 +119,7 @@ class NeuroTrigger(pl.LightningModule):
         self.log("loss", loss)
         return loss
 
-    def validation_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
+    def validation_step(self, batch: Tuple[torch.Tensor], batch_idx: int) -> Tuple[torch.Tensor, ...]:
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
@@ -142,7 +170,7 @@ class NeuroTrigger(pl.LightningModule):
         self.visualize.create_plots(
                 ys, y_hats, save=os.path.join(path, "post_training_plots"), create_baseline_plots=True)
 
-        # todo: idea: send (random) subset of samples to common visualize
+        # TODO: idea: send (random) subset of samples to common visualize
         # send here to save to our common loggin
         # create own callback logger
 
@@ -173,7 +201,6 @@ class NeuroTrigger(pl.LightningModule):
                           drop_last=False, pin_memory=True)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
-
         if self.hparams.optim not in supported_optimizers:
             raise RuntimeError(f"Optimizer {self.hparams.optim} is not supported! __init__.py defines supported optimizers.")
 
