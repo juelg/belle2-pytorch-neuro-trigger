@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Optional, Union, List
+from typing import Optional, Tuple, Union, List
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -191,7 +191,7 @@ class BelleIIDataset(Dataset):
 class BelleIIDistDataset(BelleIIDataset):
     # TODO: should this return batches?
 
-    def __init__(self, *args, dist, n_buckets=21, **kwargs) -> None:
+    def __init__(self, *args, dist, n_buckets=21, inf_bounds=False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.sort_z = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
         self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
@@ -206,24 +206,32 @@ class BelleIIDistDataset(BelleIIDataset):
 
         self.bucket_idx = np.arange(len(self.buckets))
         self.dist = dist
+        self.inf_bounds = inf_bounds
 
         self.probs = [self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
+        if not self.inf_bounds:
+            # normalize to one
+            self.probs = [i/sum(self.probs) for i in self.probs]
 
 
-    def get_prob_for_bounds(self, lower, upper):
+    def get_prob_for_bounds(self, lower: float, upper: float):
         return self.dist.cdf(upper) - self.dist.cdf(lower)
     
 
-    def get_bounds(self, bucket):
+    def get_bounds(self, bucket: int, inf_bounds: Optional[bool]=None):
+        if inf_bounds is None:
+            inf_bounds = self.inf_bounds
         lower = 2*(bucket/self.n_buckets - 0.5)
         upper = lower + 2/self.n_buckets
+        if inf_bounds:
         if math.isclose(lower, -1):
             lower = -math.inf
         if math.isclose(upper, 1):
             upper = math.inf
         return lower, upper
 
-    def get_bucket(self, z):
+
+    def get_bucket(self, z: float):
         return math.floor((z/2 + 0.5)*self.n_buckets)
 
     def __len__(self):
@@ -234,7 +242,7 @@ class BelleIIDistDataset(BelleIIDataset):
         # does not require further shuffeling by the dataloader
         return False
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> Tuple[float, ...]:
         if idx >= len(self):
             raise IndexError()
         # sample a bucket
@@ -245,7 +253,7 @@ class BelleIIDistDataset(BelleIIDataset):
         idx = self.uniform_random_choice(b)
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
-    def uniform_random_choice(self, a):
+    def uniform_random_choice(self, a: List):
         # Note somehow np.random.choice scales very badly for large arrays
         # so we rather do the two lines our self
         idx = random.randint(0, len(a)-1)

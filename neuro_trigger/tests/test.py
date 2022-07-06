@@ -2,6 +2,7 @@ from functools import partial
 import logging
 import unittest
 import sys
+sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 import numpy as np
 
 import torch
@@ -9,7 +10,6 @@ from neuro_trigger import main
 from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
 from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdenityFilter, Max2EventsFilter, index2mask_array
 from scipy.stats import norm, uniform
-sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 
 from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
 
@@ -111,9 +111,9 @@ class FilterTest(unittest.TestCase):
         le = 15
         self.assertEqual(le, len(d))
 
-
 class WeightedSamplerTest(unittest.TestCase):
-    TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
+    # TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
+    TEST_DATA = "neuro_trigger/tests/test_data.csv"
 
     # def __init__(self, *args, **kwargs):
     #     super().__init__(*args, **kwargs)
@@ -125,7 +125,7 @@ class WeightedSamplerTest(unittest.TestCase):
 
     def test_distuniform(self):
         dist = uniform(loc=-1, scale=2)
-        n_buckets=4
+        n_buckets=11
         dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets))
@@ -141,22 +141,53 @@ class WeightedSamplerTest(unittest.TestCase):
             self.assertTrue(abs(p - h) < 0.1)
             # TODO: check if the they are actually from the same bucket
 
+        self.assertEqual(len(z), len(d))
+        # plot histogram
+        import matplotlib.pyplot as plt
+        plt.clf()
+        plt.hist(z, n_buckets, range=(-1, 1))
+        # xline = (-1, 1)
+        # yline = (len(d)/n_buckets, len(d)/n_buckets)
+        # plt.plot(xline, yline, color="green")
+        xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
+        yline = [i*len(d) for i in d.probs]
+        # yline = (1/n_buckets, 1/n_buckets)
+        plt.plot(xline, yline, color="red")
+
+        plt.savefig("uniform.png")
+
     def test_distnorm(self):
         dist = norm(loc=0, scale=0.6)
-        n_buckets=4
+        n_buckets=11
         # np.random.seed(1234)
         dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets))
+        d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
+        z_unchanged = [i[1][0].item() for i in d_unchanged]
         hist, bin_edges = np.histogram(z, n_buckets, range=(-1, 1))
         hist = hist / np.sum(hist)
+        self.assertEqual(len(z), len(d))
 
         # compare to expected values
         for idx, h in enumerate(hist):
             # p = dist.cdf(bin_edges[idx+1]) - dist.cdf(bin_edges[idx])
             p = dist.cdf(d.get_bounds(idx)[1]) - dist.cdf(d.get_bounds(idx)[0])
             self.assertTrue(abs(p - h) < 0.1)
+
+        # plot histogram
+        import matplotlib.pyplot as plt
+        plt.clf()
+        plt.hist(z, n_buckets, range=(-1, 1))
+        plt.hist(z_unchanged, n_buckets, range=(-1, 1))
+        xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
+        # print(xline)
+        # print(d.probs)
+        yline = [i*len(d) for i in d.probs]
+        plt.plot(xline, yline, color="red")
+
+        plt.savefig("norm.png")
 
 
 if __name__ == '__main__':
