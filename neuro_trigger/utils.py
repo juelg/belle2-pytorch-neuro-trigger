@@ -54,20 +54,11 @@ def create_dataset_with_predictions_per_expert(expert_pl_modules: List[Lightning
         preds[expert.expert] = []
         expert.eval()
         with torch.no_grad():
-            # if re_init:
-            #     da = copy.deepcopy(expert.data[mode])
-            #     # if compare_to no set, it will take the very original one
-            #     da.init_data(filter=None, compare_to=da.compare_to)
-            #     d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
-            # else:
-            #     d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
-
 
             d = DataLoader(expert.get_expert_dataset(split=mode, filter=filter), batch_size=10000, num_workers=0, drop_last=False)
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
-                # dataset.append((idx, y_hat))
                 preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y], dim=1))
 
     for expert in expert_pl_modules:
@@ -79,24 +70,6 @@ def create_dataset_with_predictions_per_expert(expert_pl_modules: List[Lightning
 
 def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode="val", name_extension=""):
     mode = MODE2IN[mode]
-    # dataset = []
-    # for expert in expert_pl_modules:
-    #     expert.eval()
-    #     with torch.no_grad():
-    #         if re_init:
-    #             da = copy.deepcopy(expert.data[mode])
-    #             # if compare_to no set, it will take the very original one
-    #             da.init_data(filter=None, compare_to=da.compare_to)
-    #             d = DataLoader(da, batch_size=10000, num_workers=0, drop_last=False)
-    #         else:
-    #             d = DataLoader(expert.data[mode], batch_size=10000, num_workers=0, drop_last=False)
-    #         for i in d:
-    #             x, y, y_hat_old, idx = i
-    #             y_hat = expert(x)
-    #             dataset.append((idx, y_hat))
-    # idxs = torch.cat([i[0] for i in dataset])
-    # data = torch.cat([i[1] for i in dataset])
-
     idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
     data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
 
@@ -154,7 +127,6 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
     with open(os.path.join(path, "weights.json"), "w") as f:
         json.dump(exps, f)
 
-# TODO: add function to load network from checkpoint and from json
 
 def load_from_checkpoint(config: str, version="version_1", experts: Optional[List] = None):
     from neuro_trigger.lightning.pl_module import NeuroTrigger    
