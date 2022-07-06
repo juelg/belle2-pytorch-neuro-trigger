@@ -5,6 +5,7 @@ import json
 import threading
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from neuro_trigger import utils
 from neuro_trigger.lightning.mean_tb_logger import MeanLoggerExp, MeanTBLogger
 from neuro_trigger.lightning.pl_module import NeuroTrigger
 import os
@@ -15,7 +16,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 from neuro_trigger.pytorch.dataset_filters import IdenityFilter
 
-from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
+from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, load_json_weights_to_module, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
 
 
 # train = "/home/tobi/neurotrigger/train1"
@@ -179,6 +180,11 @@ def main(config, data, debug=False, solo_expert=False):
         json.dump(hparams, f, indent=2, sort_keys=True)
 
     trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, debug=debug) for expert_i in range(len(experts))]
+
+    # config: load_pre_trained_weights with path to json weights in order to train with preinialized weights
+    if hparams.get("load_pre_trained_weights"):
+        pl_modules = [pl_module for _, pl_module in trainers_modules]
+        load_json_weights_to_module(hparams.load_pre_trained_weights, pl_modules)
 
     if len(experts) == 1:
         fit(trainer_module=trainers_modules[0], logger=logger)

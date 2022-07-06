@@ -45,6 +45,7 @@ class NeuroTrigger(pl.LightningModule):
         except:
             self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
 
+        # TODO: check why it does not work when this is put outside the thread
         if hparams.compare_to:
             compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1, "")) for i in range(3)]
         else:

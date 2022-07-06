@@ -142,6 +142,8 @@ configs = {
         # "expert_4": {
         #     "batch_size": 32,
         # },
+        # path for pre trained weights that one wants to start with:
+        "load_pre_trained_weights": None,
     }
 
 
