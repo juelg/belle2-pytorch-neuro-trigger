@@ -61,7 +61,7 @@ class NeuroTrigger(pl.LightningModule):
             dist = get_dist_func(self.hparams.dist)
             # use currying (partial evaluation) to curry in the wanted parameters
             self.data[0] = self.data_mgrs[0].expert_dataset(expert=self.expert, dataset_class=functools.partial(BelleIIDistDataset,
-                            dist=dist, n_buckets=self.hparams.dist.n_buckets))
+                            dist=dist, n_buckets=self.hparams.dist.n_buckets, inf_bounds=self.hparams.dist.get("inf_bounds", False)))
 
 
         # to see model and crit have a look into the dict defined in __init__.py

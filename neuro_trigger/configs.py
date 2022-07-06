@@ -3,13 +3,65 @@ import copy
 
 configs = {
 
-    "normal_distribution": {
+
+    "filter_combine_max2_dupl_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
-        "description": "Baseline_v2 (tanh/2) with normal distribution dataloader",
+        "description": "Baseline_v2 (tanh/2) with max 2 events and duplicative events filter combinded",
+        "filter": "ConCatFilter([Max2EventsFilter(), DuplicateEventsFilter()])",
+    },
+
+    "filter_max2_events": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with max 2 events filter",
+        "filter": "Max2EventsFilter()",
+    },
+
+    "filter_dupl_events": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with duplicative events filter",
+        "filter": "DuplicateEventsFilter()",
+    },
+
+    "reweight_uniform": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with uniform distribution dataloader",
         "workers": 20,
         "dist": {
             "n_buckets": 11,
+            "uniform": {
+                    "lower": -1,
+                    "upper": 1,
+                },
+            },
+    },
+
+    "reweight_normal_11_04_inf_bounds": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with normal distribution dataloader with 11 buckets and std=0.4, with infinite bounds -> prob. will go up at the edges",
+        "workers": 20,
+        "dist": {
+            "n_buckets": 11,
+            "inf_bounds": False,
+            "norm": {
+                    "mean": 0,
+                    "std": 0.4,
+                },
+            },
+    },
+
+    "reweight_normal_11_04_no_inf_bounds": {
+        "extends": "baseline_v2",
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with normal distribution dataloader with 11 buckets and std=0.4, no infinite bounds -> reweighting",
+        "workers": 20,
+        "dist": {
+            "n_buckets": 11,
+            "inf_bounds": False,
             "norm": {
                     "mean": 0,
                     "std": 0.4,

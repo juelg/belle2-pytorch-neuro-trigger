@@ -224,6 +224,7 @@ def main(config, data, debug=False, solo_expert=False):
     with open(os.path.join(log_folder, "summary.json"), "r") as f:
         summary = json.load(f)
     summary["loss"] = loss
+    summary["data_path"] = data
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(summary, f, indent=2, sort_keys=True)
 

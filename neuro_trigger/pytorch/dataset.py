@@ -105,6 +105,8 @@ class BelleIIDataManager:
             with open(compare_to, "rb") as f:
                 # filter for the correct indicies
                 y_hat_old = torch.load(f)[self.data["idx"]]
+            # check the dimension correctness
+            assert(y_hat_old.shape[1] == 2)
             if self.out_dim == 1:
                 y_hat_old = y_hat_old[:,0]
             self.data["y_hat_old"] = y_hat_old
