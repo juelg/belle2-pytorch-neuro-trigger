@@ -11,6 +11,8 @@ import numpy as np
 
 import torch
 
+from neuro_trigger.lightning.pl_module import NeuroTrigger
+
 
 CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
 
@@ -154,7 +156,7 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
 
 # TODO: add function to load network from checkpoint and from json
 
-def load_from_checkpoint(config, version="version_1", experts: Optional[List] = None):
+def load_from_checkpoint(config: str, version="version_1", experts: Optional[List] = None):
     from neuro_trigger.lightning.pl_module import NeuroTrigger    
     experts = experts or [f"expert_{i}" for i in range(5)]
 
@@ -174,10 +176,14 @@ def load_from_checkpoint(config, version="version_1", experts: Optional[List] = 
     return models
 
 
-def load_from_json(json_path, config, version="version_1", experts: Optional[List] = None):
+def load_from_json(json_path: str, config: str, version="version_1", experts: Optional[List] = None):
     models  = load_from_checkpoint(config, version, experts)
 
-    for expert, model in zip(experts, models):
+    return load_json_weights_to_module(json_path, models)
+
+def load_json_weights_to_module(json_path: str, models: NeuroTrigger):
+    for model in models:
+        expert = model.expert
         # load json dict
         with open(json_path, "r") as f:
             wb = json.load(f)
@@ -185,8 +191,8 @@ def load_from_json(json_path, config, version="version_1", experts: Optional[Lis
         wb = exp_wb["weights"]
         wb = {key: torch.tensor(value) for key, value in wb.items()}
         model.load_state_dict(wb)
-
     return models
+
 
 def create_figures(path, models, mode=2):
     for model in models:
