@@ -79,6 +79,7 @@ class BelleIIDataManager:
 
 
     def load_data(self, compare_to=None):
+        # TODO concatenate several dataset fields
         # cache mechanism
         if Path(os.path.join(self._cache_dir, self._cache_file)).exists():
             self.logger.debug("Already cached, loading it")
@@ -156,22 +157,22 @@ class BelleIIDataset(Dataset):
     def __init__(self, data):
         self. data = data
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data["x"])
 
-    def __getitem__(self, idx: int):
+    def __getitem__(self, idx: int) -> Tuple[float, float, float, float]:
         if idx >= len(self):
             raise IndexError()
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
     @staticmethod
-    def scale(x: Union[float, torch.Tensor], lower: float, upper: float, lower_new: float, upper_new: float):
+    def scale(x: Union[float, torch.Tensor], lower: float, upper: float, lower_new: float, upper_new: float) -> Union[torch.Tensor, float]:
         # linear scaling
         # first scale to [0, 1], then scale to new interval
         return ((x-lower) / (upper-lower)) * (upper_new-lower_new) + lower_new
 
     @staticmethod
-    def to_physics(x: torch.Tensor):
+    def to_physics(x: torch.Tensor) -> torch.Tensor:
         x_ = x.clone()
         x_[:,0] = BelleIIDataset.scale(x_[:,0], -1, 1, *BelleIIDataset.Z_SCALING)
         if x_.shape[1] > 1:
@@ -179,7 +180,7 @@ class BelleIIDataset(Dataset):
         return x_
 
     @staticmethod
-    def from_physics(x: torch.Tensor):
+    def from_physics(x: torch.Tensor) -> torch.Tensor:
         x_ = x.clone()
         x_[:,0] = BelleIIDataset.scale(x_[:,0], *BelleIIDataset.Z_SCALING, -1, 1)
         if x_.shape[1] > 1:
@@ -187,7 +188,7 @@ class BelleIIDataset(Dataset):
         return x_
 
     @property
-    def requires_shuffle(self):
+    def requires_shuffle(self) -> bool:
         return True
 
 class BelleIIDistDataset(BelleIIDataset):
@@ -216,35 +217,35 @@ class BelleIIDistDataset(BelleIIDataset):
             self.probs = [i/sum(self.probs) for i in self.probs]
 
 
-    def get_prob_for_bounds(self, lower: float, upper: float):
+    def get_prob_for_bounds(self, lower: float, upper: float) -> float:
         return self.dist.cdf(upper) - self.dist.cdf(lower)
     
 
-    def get_bounds(self, bucket: int, inf_bounds: Optional[bool]=None):
+    def get_bounds(self, bucket: int, inf_bounds: Optional[bool]=None) -> Tuple[float, float]:
         if inf_bounds is None:
             inf_bounds = self.inf_bounds
         lower = 2*(bucket/self.n_buckets - 0.5)
         upper = lower + 2/self.n_buckets
         if inf_bounds:
-        if math.isclose(lower, -1):
-            lower = -math.inf
-        if math.isclose(upper, 1):
-            upper = math.inf
+            if math.isclose(lower, -1):
+                lower = -math.inf
+            if math.isclose(upper, 1):
+                upper = math.inf
         return lower, upper
 
 
-    def get_bucket(self, z: float):
+    def get_bucket(self, z: float) -> int:
         return math.floor((z/2 + 0.5)*self.n_buckets)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data["x"])
 
     @property
-    def requires_shuffle(self):
+    def requires_shuffle(self) -> bool:
         # does not require further shuffeling by the dataloader
         return False
 
-    def __getitem__(self, idx: int) -> Tuple[float, ...]:
+    def __getitem__(self, idx: int) -> Tuple[float, float, float, float]:
         if idx >= len(self):
             raise IndexError()
         # sample a bucket

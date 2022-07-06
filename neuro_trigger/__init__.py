@@ -3,6 +3,7 @@ __version__ = 0.4
 import torch
 import neuro_trigger.pytorch.model as model
 from scipy.stats import norm, uniform
+from easydict import EasyDict
 
 class LambdaModule(torch.nn.Module):
     def __init__(self, f) -> None:
@@ -38,7 +39,7 @@ act_fun = {
 }
 
 
-def get_dist_func(conf_key):
+def get_dist_func(conf_key: EasyDict):
     if "norm" in conf_key:
         return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
     elif "uniform" in conf_key:

@@ -3,6 +3,7 @@ from datetime import datetime
 import itertools
 import json
 import threading
+from typing import List, Tuple, Union
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from neuro_trigger import utils
@@ -15,6 +16,7 @@ import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
 from neuro_trigger.pytorch.dataset_filters import IdenityFilter
+from easydict import EasyDict
 
 from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, load_json_weights_to_module, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
 
@@ -40,7 +42,7 @@ val =   "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_defau
 test =  "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
 DATA_PROD = (train, val, test)
 
-def fit(trainer_module, logger):
+def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger):
     try:
         # train
         logger.info(f"Expert {trainer_module[1].expert} start training.")
@@ -58,7 +60,7 @@ def fit(trainer_module, logger):
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, fast_dev_run=False, overfit_batches = 0.0, debug=False):
+def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str, hparams: EasyDict, data: Tuple[str, str, str], version: int, fast_dev_run: bool = False, overfit_batches: Union[int, float] = 0.0, debug: bool = False) -> Tuple[pl.Trainer, NeuroTrigger]:
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
@@ -102,11 +104,11 @@ def create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, versi
     )
     return trainer, pl_module
 
-def write_global_journal(base_log, config, journal_name="log.txt"):
+def write_global_journal(base_log: str, config: str, journal_name: str = "log.txt"):
     with open(os.path.join(base_log, journal_name), "a") as f:
         f.write(f"{datetime.now()}: {config}\n")
 
-def prepare_vars(config, debug=False, solo_expert=False):
+def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
     hparams = get_hyperpar_by_name(config)
     if debug:
@@ -166,7 +168,7 @@ def prepare_vars(config, debug=False, solo_expert=False):
     return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config, data, debug=False, solo_expert=False):
+def main(config: str, data: Tuple[str, str, str], debug: bool = False, solo_expert: bool = False) -> str:
     hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert)
 
     # save git commit and git diff in file

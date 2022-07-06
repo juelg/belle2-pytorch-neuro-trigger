@@ -60,14 +60,14 @@ class Visualize:
         buf.seek(0)
         return self.buf2tensor(buf)
 
-    def create_baseline_plots(self, save=None):
+    def create_baseline_plots(self, save: Optional[str] = None):
         self.create_plots(
             self.data.data["y"], self.data.data["y_hat_old"], suffix="-old", save=save)
         y = self.data.data["y"][:self.MAX_SAMPLES]
         y = BelleIIDataset.to_physics(y)
         self.hist_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
 
-    def plot(self, name, fig, save=None):
+    def plot(self, name, fig, save: Optional[str] = None):
         if not save:
             # put figure to tensorboard
             img = self.fig2buf2tensor(fig)
@@ -79,7 +79,7 @@ class Visualize:
                 Path(save).mkdir(parents=True)
             fig.savefig(os.path.join(save, f"{name}.png"), dpi=200, bbox_inches='tight')
 
-    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None, create_baseline_plots=False):
+    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None, create_baseline_plots: bool = False):
         if isinstance(self.module.logger, DummyLogger):
             # this is a test run, dont create plots!
             return
@@ -106,7 +106,7 @@ class Visualize:
         raise RuntimeError("There must be a TensorBoardLogger within the loggers")
 
 
-    def z_plot(self, y, y_hat, suffix="", save=None):
+    def z_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
         # scatter histogram
         fig, ax = plt.subplots(dpi=200)
         y = y[:, 0].numpy()
@@ -133,7 +133,7 @@ class Visualize:
 
         self.plot(f"z-plot{suffix}", fig, save=save)
 
-    def hist_plot(self, y, y_hat, suffix="", xlabel="Neuro Z", save=None):
+    def hist_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", xlabel: str = "Neuro Z", save: Optional[str] = None):
         # todo adapt labels
         fig, ax = plt.subplots(dpi=200)
         y_hat = y_hat[:, 0].numpy()
@@ -146,7 +146,7 @@ class Visualize:
         self.plot(f"z-hist{suffix}", fig, save=save)
     
 
-    def diff_plot(self, y, y_hat, suffix="", save=None):
+    def diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         # entries, std, mean
         fig, ax = plt.subplots(dpi=200)
@@ -162,7 +162,7 @@ class Visualize:
         self.plot(f"z-diff{suffix}", fig, save=save)
 
 
-    def shallow_diff_plot(self, y, y_hat, suffix="", save=None):
+    def shallow_diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
         # +/-1 diff plot -> just limit reco z on pm 1cm
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
@@ -179,7 +179,7 @@ class Visualize:
         self.plot(f"z-shallow-diff{suffix}", fig, save=save)
 
 
-    def std_plot(self, y, y_hat, suffix="", save=None):
+    def std_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
         y, y_hat = y[:50000], y_hat[:50000]
         # TODO: dont use sorted and just plot x'es or dots
         z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()

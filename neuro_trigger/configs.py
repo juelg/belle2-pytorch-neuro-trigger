@@ -202,7 +202,7 @@ configs = {
 }
 
 
-def extend(use_dict):
+def extend(use_dict: Dict) -> Dict:
     if use_dict.get("extends"):
         name = use_dict.get("extends")
         extended = extend(configs.get(name, {}))
@@ -212,7 +212,7 @@ def extend(use_dict):
         return copy.deepcopy(use_dict)
 
 
-def get_hyperpar_by_name(name):
+def get_hyperpar_by_name(name: str) -> EasyDict:
     hparams = configs[name]
     hparams["config"] = name
     return EasyDict(extend(hparams))

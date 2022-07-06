@@ -4,7 +4,7 @@ import json
 import logging
 from lzma import MODE_FAST
 import os
-from typing import Iterable, List, Dict, Optional
+from typing import Iterable, List, Dict, Optional, Tuple
 from pytorch_lightning import LightningModule
 from torch.utils.data import DataLoader
 import numpy as np
@@ -12,6 +12,7 @@ import numpy as np
 import torch
 
 from neuro_trigger.lightning.pl_module import NeuroTrigger
+from neuro_trigger.pytorch.dataset_filters import Filter
 
 
 CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
@@ -46,7 +47,7 @@ def snap_source_state(log_folder: str):
         return f.read()
 
 
-def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode="val", filter=None) -> Dict[int, torch.tensor]:
+def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode: str = "val", filter: Optional[Filter] = None) -> Dict[int, torch.tensor]:
     # None means original filters
     mode = MODE2IN[mode]
     preds = {}
@@ -68,7 +69,7 @@ def create_dataset_with_predictions_per_expert(expert_pl_modules: List[Lightning
     return preds
 
 
-def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode="val", name_extension=""):
+def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode: str = "val", name_extension: str = ""):
     mode = MODE2IN[mode]
     idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
     data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
@@ -88,7 +89,7 @@ def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], 
         file.seek(0)
         file.write(CSV_HEAD + content)
 
-def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode="val", name_extension=""):
+def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode: str = "val", name_extension: str = ""):
     mode = MODE2IN[mode]
     dataset = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
     dataset = sorted(dataset, key=lambda x: x[0])
@@ -98,7 +99,7 @@ def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dic
     with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1, name_extension)), 'wb') as file:
         torch.save(data, file)
 
-def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]):
+def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]) -> Tuple[float, float, float, float]:
     loss = {}
     std = {}
     for expert in expert_pl_modules:
@@ -128,8 +129,7 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
         json.dump(exps, f)
 
 
-def load_from_checkpoint(config: str, version="version_1", experts: Optional[List] = None):
-    from neuro_trigger.lightning.pl_module import NeuroTrigger    
+def load_from_checkpoint(config: str, version: str = "version_1", experts: Optional[List] = None) -> List[NeuroTrigger]:
     experts = experts or [f"expert_{i}" for i in range(5)]
 
     expert_paths = [os.path.join("log", config, version, expert, "ckpts") for expert in experts]
@@ -148,12 +148,12 @@ def load_from_checkpoint(config: str, version="version_1", experts: Optional[Lis
     return models
 
 
-def load_from_json(json_path: str, config: str, version="version_1", experts: Optional[List] = None):
+def load_from_json(json_path: str, config: str, version: str = "version_1", experts: Optional[List] = None) -> List[NeuroTrigger]:
     models  = load_from_checkpoint(config, version, experts)
 
     return load_json_weights_to_module(json_path, models)
 
-def load_json_weights_to_module(json_path: str, models: NeuroTrigger):
+def load_json_weights_to_module(json_path: str, models: List[NeuroTrigger]) -> List[NeuroTrigger]:
     for model in models:
         expert = model.expert
         # load json dict
@@ -166,7 +166,7 @@ def load_json_weights_to_module(json_path: str, models: NeuroTrigger):
     return models
 
 
-def create_figures(path, models, mode=2):
+def create_figures(path: str, models: List[NeuroTrigger], mode: int = 2):
     for model in models:
         outputs = []
         model.visualize.folder = os.path.join(path, model.exp_str())
