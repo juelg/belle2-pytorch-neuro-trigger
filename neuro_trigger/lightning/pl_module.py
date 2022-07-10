@@ -37,13 +37,13 @@ class NeuroTrigger(pl.LightningModule):
         self.file_logger = logging.getLogger()
 
 
-        self.fltr = None
         try:
-            self.fltr = eval(self.hparams.get("filter", "IdenityFilter()"))
+            self.fltr = eval(self.hparams.get("filter", "dataset_filters.IdenityFilter()"))
             if not isinstance(self.fltr, dataset_filters.Filter):
                 raise RuntimeError()
         except:
             self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
+            raise RuntimeError()
 
         # TODO: check why it does not work when this is put outside the thread
         if hparams.compare_to:

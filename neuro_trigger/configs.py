@@ -8,21 +8,21 @@ configs = {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with max 2 events and duplicative events filter combinded",
-        "filter": "ConCatFilter([Max2EventsFilter(), DuplicateEventsFilter()])",
+        "filter": "dataset_filters.ConCatFilter([dataset_filters.Max2EventsFilter(), dataset_filters.DuplicateEventsFilter()])",
     },
 
     "filter_max2_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with max 2 events filter",
-        "filter": "Max2EventsFilter()",
+        "filter": "dataset_filters.Max2EventsFilter()",
     },
 
     "filter_dupl_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with duplicative events filter",
-        "filter": "DuplicateEventsFilter()",
+        "filter": "dataset_filters.DuplicateEventsFilter()",
     },
 
     "reweight_uniform": {
