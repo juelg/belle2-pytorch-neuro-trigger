@@ -1,5 +1,6 @@
-from typing import List
+from typing import Iterable, List
 from abc import ABC, abstractmethod
+import numpy as np
 
 import torch
 
@@ -12,7 +13,19 @@ import torch
 
 
 # helper functions
-def index2mask_array(index_array, n):
+def index2mask_array(index_array: torch.Tensor, n: int) -> torch.Tensor:
+    """Helper function which creates boolean array out of an index array
+
+    Transforms an array that describes a subset of array A by the indicies that are in the subset
+    to bit mask array, which is set to true if the respective index should be kept and false otherwise
+
+    Args:
+        index_array (torch.Tensor): index array (1d tensor), array with indecies that should be kept
+        n (int): length of the original array
+
+    Returns:
+        torch.Tensor: boolean array with entries set to true if element of index_array, else false
+    """
     mask_array = torch.zeros(n, dtype=int)
     mask_array[index_array.long()] = 1
     return mask_array.bool()
@@ -20,18 +33,35 @@ def index2mask_array(index_array, n):
 
 
 class Filter(ABC):
-    # use torch.where to get the keep indexes for the bool arrays
+    """Abstract dataset filter
+
+    Must implement the fltr function which takes the dataset and returns a boolean array with entries
+    set to true that should be kept.
+    """
     @abstractmethod
-    def fltr(self, data: torch.Tensor):
-        # return a boolean vector where the entry is set to true if you want to keep the entry, otherwise to false
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+        """Should implement a concrete filter: Can calculate which elements to keep given the dataset
+
+        Args:
+            data (torch.Tensor): Dataset data
+
+        Returns:
+            torch.Tensor: Returns a boolean vector where the entry is set to true if you want to keep the entry, otherwise to false
+        """
         pass
 
 class ConCatFilter(Filter):
+    """Concatenates several filters given as a list by using the "and" operator
+    """
     def __init__(self, filters: List[Filter]):
+        """
+        Args:
+            filters (List[Filter]): list of filters that should be concatenated
+        """
         Filter.__init__(self)
         self.filters = filters
 
-    def fltr(self, data):
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
         # vectors for data to keep
         keep_vecs = [filter.fltr(data) for filter in self.filters]
         # AND the keep vectors
@@ -41,15 +71,21 @@ class ConCatFilter(Filter):
         return out
 
 class IdenityFilter(Filter):
-    def fltr(self, data):
+    """No filter, returns array with all values set to true
+    """
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
         return torch.ones(len(data['x'])).bool()
 
 
 class ExpertFilter(Filter):
     def __init__(self, expert: int):
+        """Filters out data which does not belong to the given expert
+        Args:
+            expert (int): expert number in {0, 1, 2, 3, 4}
+        """
         Filter.__init__(self)
         self.expert = expert
-    def fltr(self, data):
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
         if self.expert == -1:
             # no expert filter should be applied in that case
             return torch.ones(len(data['x'])).bool()
@@ -57,8 +93,9 @@ class ExpertFilter(Filter):
 
 
 class Max2EventsFilter(Filter):
-    def fltr(self, data):
-        # return data["ntracks"] <= 2
+    """Keeps only events with less than 3 tracks
+    """
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
         # create map event -> y -> tracks
         event_map = {}
         for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
@@ -80,7 +117,9 @@ class Max2EventsFilter(Filter):
         return index2mask_array(keep_idx, len(data['x']))
 
 class DuplicateEventsFilter(Filter):
-    def fltr(self, data):
+    """If there is several data for a single track, only the first one is kept and the others are filtered out
+    """
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
         # create map event,y -> tracks
         event_map = {}
         for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
@@ -109,5 +148,6 @@ class RangeFilter(Filter):
         assert min(self.rng) >= 0
         assert max(self.rng) < len(data['x'])
         return index2mask_array(self.rng, len(data['x']))
+
 
 

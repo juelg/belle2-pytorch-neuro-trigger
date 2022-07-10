@@ -1,6 +1,8 @@
+from ast import Dict
+from functools import partial
 import math
 import random
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, TypeVar, Union, List
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -50,6 +52,9 @@ class DatasetPath:
     def create_static_random_split():
         pass
 
+# type variables for type hinting
+BDType = TypeVar('BDType', bound="BelleIIDataset")
+T = TypeVar('T')
 
 
 # TODO: support for merging several files
@@ -78,7 +83,7 @@ class BelleIIDataManager:
         return len(self.data["x"])
 
 
-    def load_data(self, compare_to=None):
+    def load_data(self, compare_to: Optional[str]=None):
         # TODO concatenate several dataset fields
         # cache mechanism
         if Path(os.path.join(self._cache_dir, self._cache_file)).exists():
@@ -112,7 +117,7 @@ class BelleIIDataManager:
                 y_hat_old = y_hat_old[:,0]
             self.data["y_hat_old"] = y_hat_old
 
-    def dataset(self, filter=None, dataset_class=None):
+    def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
         # default values
         self.logger.debug(f"Size before filter: {len(self)}")
         filter = filter or dataset_filters.IdenityFilter()
@@ -124,7 +129,7 @@ class BelleIIDataManager:
         self.logger.debug(f"Size after filter: {len(data['x'])}")
         return dataset_class(data)
 
-    def expert_dataset(self, expert=-1, filter=None, dataset_class=None):
+    def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
         filter = filter or dataset_filters.IdenityFilter()
         filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
         dataset = self.dataset(filter, dataset_class)
@@ -133,19 +138,19 @@ class BelleIIDataManager:
         return dataset
 
 
-    def get_data_array(self):
+    def get_data_array(self) -> np.array:
         # also used in utils
         dt = np.loadtxt(self.path, skiprows=2)
         return dt
 
 
-    def save(self, dt):
+    def save(self, dt: Union[torch.Tensor, np.array]):
         if not Path(self._cache_dir).exists():
             Path(self._cache_dir).mkdir()
         with open(os.path.join(self._cache_dir, self._cache_file), "wb") as f:
             torch.save(dt, f)
 
-    def open(self):
+    def open(self) -> torch.Tensor:
         with open(os.path.join(self._cache_dir, self._cache_file), "rb") as f:
             return torch.load(f)
 
@@ -154,7 +159,7 @@ class BelleIIDataset(Dataset):
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
 
-    def __init__(self, data):
+    def __init__(self, data: Dict[str, torch.Tensor]):
         self. data = data
 
     def __len__(self) -> int:
@@ -256,7 +261,7 @@ class BelleIIDistDataset(BelleIIDataset):
         idx = self.uniform_random_choice(b)
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
-    def uniform_random_choice(self, a: List):
+    def uniform_random_choice(self, a: List[T]) -> T:
         # Note somehow np.random.choice scales very badly for large arrays
         # so we rather do the two lines our self
         idx = random.randint(0, len(a)-1)
