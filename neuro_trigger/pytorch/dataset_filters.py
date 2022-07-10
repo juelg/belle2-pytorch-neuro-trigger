@@ -94,3 +94,20 @@ class DuplicateEventsFilter(Filter):
         keep_idx = torch.Tensor(keep_idx)
 
         return index2mask_array(keep_idx, len(data['x']))
+
+
+class RangeFilter(Filter):
+    def __init__(self, rng: Iterable):
+        """Given out an index range, this filter removes all non included indicies from the dataset 
+        Args:
+            rng (Iterable): Something that describes a range, e.g. range(1, 100)
+        """
+        self.rng = torch.tensor(np.array([i for i in rng]))
+
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+        assert len(self.rng) <= len(data['x'])
+        assert min(self.rng) >= 0
+        assert max(self.rng) < len(data['x'])
+        return index2mask_array(self.rng, len(data['x']))
+
+
