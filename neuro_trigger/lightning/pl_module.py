@@ -112,7 +112,7 @@ class NeuroTrigger(pl.LightningModule):
         return self.model(x)
 
 
-    def training_step(self, batch: Tuple[torch.Tensor], batch_idx: int) -> torch.tensor:
+    def training_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int) -> torch.tensor:
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         # TODO set more weight on z for learning and the loss function
@@ -120,7 +120,7 @@ class NeuroTrigger(pl.LightningModule):
         self.log("loss", loss)
         return loss
 
-    def validation_step(self, batch: Tuple[torch.Tensor], batch_idx: int) -> Tuple[torch.Tensor, ...]:
+    def validation_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int) -> Tuple[torch.Tensor, ...]:
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
@@ -176,13 +176,13 @@ class NeuroTrigger(pl.LightningModule):
         # create own callback logger
 
 
-    def test_step(self, batch: Tuple[torch.Tensor], batch_idx: int):
+    def test_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int):
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
         self.log("test_loss", loss)
 
-    def validation_epoch_end(self, outputs: List[Tuple[torch.Tensor]]):
+    def validation_epoch_end(self, outputs: List[Tuple[torch.Tensor, ...]]):
         # outputs are a list of the tuples that have been returned by the validation
         self.visualize.create_plots(
             torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))

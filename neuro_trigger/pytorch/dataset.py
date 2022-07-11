@@ -1,8 +1,7 @@
-from ast import Dict
 from functools import partial
 import math
 import random
-from typing import Optional, Tuple, TypeVar, Union, List
+from typing import Iterable, Optional, Tuple, TypeVar, Union, List, Dict
 from torch.utils.data import Dataset
 from pathlib import Path
 import torch
@@ -117,7 +116,7 @@ class BelleIIDataManager:
                 y_hat_old = y_hat_old[:,0]
             self.data["y_hat_old"] = y_hat_old
 
-    def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
+    def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
         # default values
         self.logger.debug(f"Size before filter: {len(self)}")
         filter = filter or dataset_filters.IdentityFilter()
@@ -129,7 +128,7 @@ class BelleIIDataManager:
         self.logger.debug(f"Size after filter: {len(data['x'])}")
         return dataset_class(data)
 
-    def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
+    def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
         filter = filter or dataset_filters.IdentityFilter()
         filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
         dataset = self.dataset(filter, dataset_class)
@@ -199,9 +198,9 @@ class BelleIIDataset(Dataset):
 class BelleIIDistDataset(BelleIIDataset):
     # TODO: should this return batches?
 
-    def __init__(self, *args, dist, n_buckets=21, inf_bounds=False, **kwargs) -> None:
+    def __init__(self, *args, dist, n_buckets: int = 21, inf_bounds: bool = False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.sort_z = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
+        self.sort_z: List[Tuple[int, float]] = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
         self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
         self.n_buckets = n_buckets
         self.buckets = {}
@@ -261,7 +260,7 @@ class BelleIIDistDataset(BelleIIDataset):
         idx = self.uniform_random_choice(b)
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
-    def uniform_random_choice(self, a: List[T]) -> T:
+    def uniform_random_choice(self, a: Iterable[T]) -> T:
         # Note somehow np.random.choice scales very badly for large arrays
         # so we rather do the two lines our self
         idx = random.randint(0, len(a)-1)
