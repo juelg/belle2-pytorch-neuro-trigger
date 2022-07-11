@@ -43,7 +43,7 @@ def get_dist_func(conf_key: EasyDict):
     if "norm" in conf_key:
         return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
     elif "uniform" in conf_key:
-        return uniform(loc=conf_key["uniform"]["lower"], scale=conf_key["uniform"]["upper"])
+        return uniform(loc=conf_key["uniform"]["lower"], scale=(conf_key["uniform"]["upper"] - conf_key["uniform"]["lower"]))
 
 
 
