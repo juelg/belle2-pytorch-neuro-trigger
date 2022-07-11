@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import os
 from typing import Optional, Tuple
 import matplotlib.pyplot as plt
@@ -18,6 +19,112 @@ from pathlib import Path
 from pytorch_lightning.loggers.base import DummyLogger
 
 
+class NTPlot(ABC):
+    def __init__(self, vis: "Visualize"):
+        self.vis = vis
+
+    @abstractmethod
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        pass
+
+    def __call__(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        self.create_plot(y, y_hat, suffix, save)
+    
+
+class ZPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        # scatter histogram
+        fig, ax = plt.subplots(dpi=200)
+        y = y[:, 0].numpy()
+        y_hat = y_hat[:, 0].numpy()
+        h = ax.hist2d(y, y_hat,
+                      200, norm=LogNorm(), cmap='jet')
+        
+        ax.plot([], [], ' ', label=f"Num: {len(y)}")
+        ax.plot([], [], ' ', label=f"Mean x: {np.mean(y):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std x: {np.std(y):.{3}f}")
+        ax.plot([], [], ' ', label=f"Mean y: {np.mean(y_hat):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std y: {np.std(y_hat):.{3}f}")
+        ax.legend()
+
+        cbar = fig.colorbar(h[3], ax=ax)
+        cbar.set_label(r'$\log_{10}$ density of points')
+
+        ax.set(xlabel="reco Track z", ylabel="nnhw Track z",
+               title="z0 reco vs z0 nnhw")
+        ax.axis('square')
+        ax.set_aspect('equal', adjustable='box')
+        ax.set_xlim(BelleIIDataset.Z_SCALING) # [-100, 100]
+        ax.set_ylim(BelleIIDataset.Z_SCALING)
+
+        self.vis.plot(f"z-plot{suffix}", fig, save=save)
+
+class HistPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", xlabel: str = "Neuro Z", save: Optional[str] = None):
+        # todo adapt labels
+        fig, ax = plt.subplots(dpi=200)
+        y_hat = y_hat[:, 0].numpy()
+        ax.hist(y_hat, bins=100)
+        ax.plot([], [], ' ', label=f"Num: {len(y_hat)}")
+        ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
+        ax.legend()
+        ax.set(xlabel=xlabel)
+        self.vis.plot(f"z-hist{suffix}", fig, save=save)
+
+class DiffPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+        # entries, std, mean
+        fig, ax = plt.subplots(dpi=200)
+        ax.hist(diff, bins=100)
+        ax.plot([], [], ' ', label=f"Num: {len(diff)}")
+        ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+        ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
+        ax.set(xlabel="z(Reco-Neuro)")
+        ax.set_xlim(BelleIIDataset.Z_SCALING)
+        ax.legend()
+        ax.grid()
+        self.vis.plot(f"z-diff{suffix}", fig, save=save)
+class ShallowDiffPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        # +/-1 diff plot -> just limit reco z on pm 1cm
+        diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+        diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
+        fig, ax = plt.subplots(dpi=200)
+
+        ax.hist(diff, bins=100)
+        ax.plot([], [], ' ', label=f"Num: {len(diff)}")
+        ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
+        ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+        ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
+        ax.set(xlabel="z(Reco-Neuro)")
+        ax.legend()
+        ax.grid()
+        self.vis.plot(f"z-shallow-diff{suffix}", fig, save=save)
+
+class StdPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+        y, y_hat = y[:50000], y_hat[:50000]
+        # TODO: dont use sorted and just plot x'es or dots
+        z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+        y_sorted = np.sort(y[:,0])
+        y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
+
+        def f(yi):
+            return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
+        stds = np.vectorize(f)(y_sorted[::100])
+
+        fig, ax = plt.subplots(dpi=200)
+        ax.plot(y_sorted[::100], stds)
+        ax.plot([], [], ' ', label=f"Num: {len(z_diff)}")
+        ax.plot([], [], ' ', label=f"Min: {min(stds):.{3}f}")
+        ax.legend()
+        ax.grid()
+        ax.set(xlabel="reco z")
+        ax.set(ylabel="std (reco-neuro)")
+        self.vis.plot(f"z-std{suffix}", fig, save=save)
 
 class Visualize:
     MAX_SAMPLES = 1000000
@@ -26,7 +133,7 @@ class Visualize:
         self.module = module
         # self.data = Subset(data, np.arange(len(data))[:40000])
         self.data = data
-        self.plots = [self.z_plot, self.hist_plot, self.diff_plot, self.std_plot, self.shallow_diff_plot]
+        self.plots = [ZPlot(self), HistPlot(self), DiffPlot(self), StdPlot(self), ShallowDiffPlot(self)]
 
         self.should_create_baseline_plots = True
 
@@ -65,7 +172,7 @@ class Visualize:
             self.data.data["y"], self.data.data["y_hat_old"], suffix="-old", save=save)
         y = self.data.data["y"][:self.MAX_SAMPLES]
         y = BelleIIDataset.to_physics(y)
-        self.hist_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
+        HistPlot(self).create_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
 
     def plot(self, name, fig, save: Optional[str] = None):
         if not save:
@@ -106,96 +213,96 @@ class Visualize:
         raise RuntimeError("There must be a TensorBoardLogger within the loggers")
 
 
-    def z_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
-        # scatter histogram
-        fig, ax = plt.subplots(dpi=200)
-        y = y[:, 0].numpy()
-        y_hat = y_hat[:, 0].numpy()
-        h = ax.hist2d(y, y_hat,
-                      200, norm=LogNorm(), cmap='jet')
+    # def z_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    #     # scatter histogram
+    #     fig, ax = plt.subplots(dpi=200)
+    #     y = y[:, 0].numpy()
+    #     y_hat = y_hat[:, 0].numpy()
+    #     h = ax.hist2d(y, y_hat,
+    #                   200, norm=LogNorm(), cmap='jet')
         
-        ax.plot([], [], ' ', label=f"Num: {len(y)}")
-        ax.plot([], [], ' ', label=f"Mean x: {np.mean(y):.{3}f}")
-        ax.plot([], [], ' ', label=f"Std x: {np.std(y):.{3}f}")
-        ax.plot([], [], ' ', label=f"Mean y: {np.mean(y_hat):.{3}f}")
-        ax.plot([], [], ' ', label=f"Std y: {np.std(y_hat):.{3}f}")
-        ax.legend()
+    #     ax.plot([], [], ' ', label=f"Num: {len(y)}")
+    #     ax.plot([], [], ' ', label=f"Mean x: {np.mean(y):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Std x: {np.std(y):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Mean y: {np.mean(y_hat):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Std y: {np.std(y_hat):.{3}f}")
+    #     ax.legend()
 
-        cbar = fig.colorbar(h[3], ax=ax)
-        cbar.set_label(r'$\log_{10}$ density of points')
+    #     cbar = fig.colorbar(h[3], ax=ax)
+    #     cbar.set_label(r'$\log_{10}$ density of points')
 
-        ax.set(xlabel="reco Track z", ylabel="nnhw Track z",
-               title="z0 reco vs z0 nnhw")
-        ax.axis('square')
-        ax.set_aspect('equal', adjustable='box')
-        ax.set_xlim(BelleIIDataset.Z_SCALING) # [-100, 100]
-        ax.set_ylim(BelleIIDataset.Z_SCALING)
+    #     ax.set(xlabel="reco Track z", ylabel="nnhw Track z",
+    #            title="z0 reco vs z0 nnhw")
+    #     ax.axis('square')
+    #     ax.set_aspect('equal', adjustable='box')
+    #     ax.set_xlim(BelleIIDataset.Z_SCALING) # [-100, 100]
+    #     ax.set_ylim(BelleIIDataset.Z_SCALING)
 
-        self.plot(f"z-plot{suffix}", fig, save=save)
+    #     self.plot(f"z-plot{suffix}", fig, save=save)
 
-    def hist_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", xlabel: str = "Neuro Z", save: Optional[str] = None):
-        # todo adapt labels
-        fig, ax = plt.subplots(dpi=200)
-        y_hat = y_hat[:, 0].numpy()
-        ax.hist(y_hat, bins=100)
-        ax.plot([], [], ' ', label=f"Num: {len(y_hat)}")
-        ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
-        ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
-        ax.legend()
-        ax.set(xlabel=xlabel)
-        self.plot(f"z-hist{suffix}", fig, save=save)
+    # def hist_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", xlabel: str = "Neuro Z", save: Optional[str] = None):
+    #     # todo adapt labels
+    #     fig, ax = plt.subplots(dpi=200)
+    #     y_hat = y_hat[:, 0].numpy()
+    #     ax.hist(y_hat, bins=100)
+    #     ax.plot([], [], ' ', label=f"Num: {len(y_hat)}")
+    #     ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
+    #     ax.legend()
+    #     ax.set(xlabel=xlabel)
+    #     self.plot(f"z-hist{suffix}", fig, save=save)
     
 
-    def diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
-        diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        # entries, std, mean
-        fig, ax = plt.subplots(dpi=200)
-        ax.hist(diff, bins=100)
-        ax.plot([], [], ' ', label=f"Num: {len(diff)}")
-        ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
-        ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
-        ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
-        ax.set(xlabel="z(Reco-Neuro)")
-        ax.set_xlim(BelleIIDataset.Z_SCALING)
-        ax.legend()
-        ax.grid()
-        self.plot(f"z-diff{suffix}", fig, save=save)
+    # def diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    #     diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+    #     # entries, std, mean
+    #     fig, ax = plt.subplots(dpi=200)
+    #     ax.hist(diff, bins=100)
+    #     ax.plot([], [], ' ', label=f"Num: {len(diff)}")
+    #     ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
+    #     ax.set(xlabel="z(Reco-Neuro)")
+    #     ax.set_xlim(BelleIIDataset.Z_SCALING)
+    #     ax.legend()
+    #     ax.grid()
+    #     self.plot(f"z-diff{suffix}", fig, save=save)
 
 
-    def shallow_diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
-        # +/-1 diff plot -> just limit reco z on pm 1cm
-        diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
-        fig, ax = plt.subplots(dpi=200)
+    # def shallow_diff_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    #     # +/-1 diff plot -> just limit reco z on pm 1cm
+    #     diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+    #     diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
+    #     fig, ax = plt.subplots(dpi=200)
 
-        ax.hist(diff, bins=100)
-        ax.plot([], [], ' ', label=f"Num: {len(diff)}")
-        ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
-        ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
-        ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
-        ax.set(xlabel="z(Reco-Neuro)")
-        ax.legend()
-        ax.grid()
-        self.plot(f"z-shallow-diff{suffix}", fig, save=save)
+    #     ax.hist(diff, bins=100)
+    #     ax.plot([], [], ' ', label=f"Num: {len(diff)}")
+    #     ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+    #     ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
+    #     ax.set(xlabel="z(Reco-Neuro)")
+    #     ax.legend()
+    #     ax.grid()
+    #     self.plot(f"z-shallow-diff{suffix}", fig, save=save)
 
 
-    def std_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
-        y, y_hat = y[:50000], y_hat[:50000]
-        # TODO: dont use sorted and just plot x'es or dots
-        z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        y_sorted = np.sort(y[:,0])
-        y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
+    # def std_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    #     y, y_hat = y[:50000], y_hat[:50000]
+    #     # TODO: dont use sorted and just plot x'es or dots
+    #     z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
+    #     y_sorted = np.sort(y[:,0])
+    #     y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
 
-        def f(yi):
-            return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
-        stds = np.vectorize(f)(y_sorted[::100])
+    #     def f(yi):
+    #         return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
+    #     stds = np.vectorize(f)(y_sorted[::100])
 
-        fig, ax = plt.subplots(dpi=200)
-        ax.plot(y_sorted[::100], stds)
-        ax.plot([], [], ' ', label=f"Num: {len(z_diff)}")
-        ax.plot([], [], ' ', label=f"Min: {min(stds):.{3}f}")
-        ax.legend()
-        ax.grid()
-        ax.set(xlabel="reco z")
-        ax.set(ylabel="std (reco-neuro)")
-        self.plot(f"z-std{suffix}", fig, save=save)
+    #     fig, ax = plt.subplots(dpi=200)
+    #     ax.plot(y_sorted[::100], stds)
+    #     ax.plot([], [], ' ', label=f"Num: {len(z_diff)}")
+    #     ax.plot([], [], ' ', label=f"Min: {min(stds):.{3}f}")
+    #     ax.legend()
+    #     ax.grid()
+    #     ax.set(xlabel="reco z")
+    #     ax.set(ylabel="std (reco-neuro)")
+    #     self.plot(f"z-std{suffix}", fig, save=save)
