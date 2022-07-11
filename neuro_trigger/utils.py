@@ -74,7 +74,7 @@ def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], 
     idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
     data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
 
-    data_arr = expert_pl_modules[0].data_mgrs[mode].open()
+    data_arr = expert_pl_modules[0].data_mgrs[mode].get_data_array()
     new_arr = np.zeros((data_arr.shape[0], data_arr.shape[1] + 2))
     new_arr[:,:-2] = data_arr
     for i in range(len(data)):

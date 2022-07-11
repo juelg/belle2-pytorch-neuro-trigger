@@ -61,21 +61,21 @@ T = TypeVar('T')
 # TODO: add preprocessing, maybe pytorch transformers
 class BelleIIDataManager:
     _cache_dir = ".cache"
-    def __init__(self, path: str, logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None) -> None:
+    def __init__(self, paths: List[str], logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None) -> None:
         # filter must be a function that receives a dictionary of the form created by the init_data function
         # it should return a filtered variant of this dataset in the same dictionary form
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
-        self.path = path
-        print(path)
-        self._cache_file = f"{md5(self.path)}.pt"
+        self.paths = paths
+        self._cache_files = [f"{md5(path)}.pt" for path in self.paths]
         self.logger = logger
         self.out_dim = out_dim
         self.compare_to = compare_to 
         self.load_data(self.compare_to)
 
+        paths_str = '\n'.join(self.paths)
         self.logger.debug(
-            f"Dataset {self.path} with length {len(self)} done init")
+            f"Dataset:\n{paths_str}\nwith length {len(self)} done init")
         print("done")
 
     def __len__(self):
@@ -83,15 +83,10 @@ class BelleIIDataManager:
 
 
     def load_data(self, compare_to: Optional[str]=None):
-        # TODO concatenate several dataset fields
-        # cache mechanism
-        if Path(os.path.join(self._cache_dir, self._cache_file)).exists():
-            self.logger.debug("Already cached, loading it")
-            dt = self.open()
-        else:
-            dt = self.get_data_array()
-            self.save(dt)
+        # open and concatenate datasets
+        dt = self.get_data_array()
 
+        # create easy accessable dictionary
         self.data = {
             "x": torch.Tensor(dt[:, 9:36]),
             # only 36:37 if only z (out_dim=2)
@@ -105,6 +100,7 @@ class BelleIIDataManager:
             "ntracks": torch.Tensor(dt[:, 5]),
         }
 
+        # add prediction outputs from old networks
         if compare_to:
             # when we want to compare to different predictions
             with open(compare_to, "rb") as f:
@@ -136,22 +132,35 @@ class BelleIIDataManager:
             f"Expert #{expert} with length {len(dataset)} created")
         return dataset
 
+    def get_data_array(self) -> torch.Tensor:
+        dts = []
+        for cache_file, path in zip(self._cache_files, self.paths):
+            # cache mechanism
+            if Path(os.path.join(self._cache_dir, cache_file)).exists():
+                self.logger.debug(f"{path} already cached, loading it.")
+                dts.append(self.open_cache(cache_file))
+            else:
+                dt = self.read_from_csv(path)
+                self.save_cache(dt, cache_file)
+                dts.append(dt)
+        return torch.cat(dts, dim=0)
 
-    def get_data_array(self) -> np.array:
-        # also used in utils
-        dt = np.loadtxt(self.path, skiprows=2)
-        return dt
+    def read_from_csv(self, path: str) -> torch.Tensor:
+        return torch.Tensor(np.loadtxt(path, skiprows=2))
 
 
-    def save(self, dt: Union[torch.Tensor, np.array]):
+    def save_cache(self, dt: Union[torch.Tensor, np.array], cache_file: str):
         if not Path(self._cache_dir).exists():
             Path(self._cache_dir).mkdir()
-        with open(os.path.join(self._cache_dir, self._cache_file), "wb") as f:
+        with open(os.path.join(self._cache_dir, cache_file), "wb") as f:
             torch.save(dt, f)
 
-    def open(self) -> torch.Tensor:
-        with open(os.path.join(self._cache_dir, self._cache_file), "rb") as f:
-            return torch.load(f)
+    def open_cache(self, cache_file: str) -> torch.Tensor:
+        with open(os.path.join(self._cache_dir, cache_file), "rb") as f:
+            dt = torch.load(f)
+            if isinstance(dt, np.ndarray):
+                return torch.Tensor(dt)
+            return dt
 
 
 class BelleIIDataset(Dataset):

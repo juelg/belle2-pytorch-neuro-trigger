@@ -22,7 +22,7 @@ from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_var
 
 
 class End2End(unittest.TestCase):
-    TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
+    TEST_DATA = ["neuro_trigger/tests/test_data_filter.csv"]
 
     def test_end2end_fast_dev_run(self):
         used_config = "base"
