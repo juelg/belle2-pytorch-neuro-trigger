@@ -38,7 +38,7 @@ class NeuroTrigger(pl.LightningModule):
 
 
         try:
-            self.fltr = eval(self.hparams.get("filter", "dataset_filters.IdenityFilter()"))
+            self.fltr = eval(self.hparams.get("filter", "dataset_filters.IdentityFilter()"))
             if not isinstance(self.fltr, dataset_filters.Filter):
                 raise RuntimeError()
         except:
@@ -82,7 +82,7 @@ class NeuroTrigger(pl.LightningModule):
         Returns:
             BelleIIDataset: BelleIIDataset filtered to the given expert and the given filters.
         """
-        filter = filter or self.fltr or dataset_filters.IdenityFilter()
+        filter = filter or self.fltr or dataset_filters.IdentityFilter()
         return self.data_mgrs[split].expert_dataset(expert=self.expert, filter=filter)
 
     def extract_expert_hparams(self, hparams: Union[Dict, EasyDict]) -> Union[Dict, EasyDict]:

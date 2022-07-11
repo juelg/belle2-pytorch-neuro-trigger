@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from neuro_trigger import main
 from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
-from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdenityFilter, Max2EventsFilter, index2mask_array
+from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdentityFilter, Max2EventsFilter, index2mask_array
 from scipy.stats import norm, uniform
 
 from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
@@ -77,7 +77,7 @@ class FilterTest(unittest.TestCase):
         self.assertTrue((b_array == torch.tensor([False, True, False, True, False, False, False, False, True, False, True])).all())
 
     def test_identityfilter(self):
-        d = self.dm.dataset(filter=IdenityFilter())
+        d = self.dm.dataset(filter=IdentityFilter())
         le = 51
         self.assertEqual(le, len(d))
 
@@ -107,7 +107,7 @@ class FilterTest(unittest.TestCase):
         self.assertTrue((13824, 1) not in et)
 
     def test_ConCatFilter(self):
-        d = self.dm.dataset(filter=ConCatFilter(filters=[DuplicateEventsFilter(), Max2EventsFilter(), IdenityFilter()]))
+        d = self.dm.dataset(filter=ConCatFilter(filters=[DuplicateEventsFilter(), Max2EventsFilter(), IdentityFilter()]))
         le = 15
         self.assertEqual(le, len(d))
 

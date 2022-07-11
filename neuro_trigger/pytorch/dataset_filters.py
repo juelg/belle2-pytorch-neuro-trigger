@@ -70,7 +70,7 @@ class ConCatFilter(Filter):
             out &= vec
         return out
 
-class IdenityFilter(Filter):
+class IdentityFilter(Filter):
     """No filter, returns array with all values set to true
     """
     def fltr(self, data: torch.Tensor) -> torch.Tensor:

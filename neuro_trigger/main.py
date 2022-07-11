@@ -15,7 +15,7 @@ from pathlib import Path
 import logging
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 import torch
-from neuro_trigger.pytorch.dataset_filters import IdenityFilter
+from neuro_trigger.pytorch.dataset_filters import IdentityFilter
 from easydict import EasyDict
 
 from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, load_json_weights_to_module, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
@@ -213,7 +213,7 @@ def main(config: str, data: Tuple[str, str, str], debug: bool = False, solo_expe
 
     for filtered, mode in itertools.product([True, False] if hparams.get("filter") else [False], ["train", "val", "test"]):
         name_extension = "_filtered" if filtered else ""
-        preds = create_dataset_with_predictions_per_expert(expert_modules, mode=mode, filter=None if filtered else IdenityFilter())
+        preds = create_dataset_with_predictions_per_expert(expert_modules, mode=mode, filter=None if filtered else IdentityFilter())
         save_csv_dataset_with_predictions(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
         save_predictions_pickle(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
         # loss_overall, std_overall, loss, std 

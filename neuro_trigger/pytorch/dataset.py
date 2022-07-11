@@ -120,7 +120,7 @@ class BelleIIDataManager:
     def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
         # default values
         self.logger.debug(f"Size before filter: {len(self)}")
-        filter = filter or dataset_filters.IdenityFilter()
+        filter = filter or dataset_filters.IdentityFilter()
         dataset_class = dataset_class or BelleIIDataset
 
         keep = torch.where(filter.fltr(self.data))
@@ -130,7 +130,7 @@ class BelleIIDataManager:
         return dataset_class(data)
 
     def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None):
-        filter = filter or dataset_filters.IdenityFilter()
+        filter = filter or dataset_filters.IdentityFilter()
         filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
         dataset = self.dataset(filter, dataset_class)
         self.logger.debug(
