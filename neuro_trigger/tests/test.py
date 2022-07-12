@@ -114,6 +114,7 @@ class FilterTest(unittest.TestCase):
 class WeightedSamplerTest(unittest.TestCase):
     # TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
     TEST_DATA = ["neuro_trigger/tests/test_data.csv"]
+    PLOT = False
 
 
     def test_distuniform(self):
@@ -122,7 +123,9 @@ class WeightedSamplerTest(unittest.TestCase):
         dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets))
+        d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
+        z_unchanged = [i[1][0].item() for i in d_unchanged]
         hist, bin_edges = np.histogram(z, n_buckets, range=(-1, 1))
         hist = hist / np.sum(hist)
 
@@ -135,6 +138,8 @@ class WeightedSamplerTest(unittest.TestCase):
             # TODO: check if the they are actually from the same bucket
 
         self.assertEqual(len(z), len(d))
+
+        if self.PLOT:
         # plot histogram
         import matplotlib.pyplot as plt
         plt.clf()
@@ -142,12 +147,13 @@ class WeightedSamplerTest(unittest.TestCase):
         # xline = (-1, 1)
         # yline = (len(d)/n_buckets, len(d)/n_buckets)
         # plt.plot(xline, yline, color="green")
+            plt.hist(z_unchanged, n_buckets, range=(-1, 1))
         xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
         yline = [i*len(d) for i in d.probs]
         # yline = (1/n_buckets, 1/n_buckets)
         plt.plot(xline, yline, color="red")
 
-        plt.savefig("uniform.png")
+            plt.savefig("docs/uniform.png")
 
     def test_distnorm(self):
         dist = norm(loc=0, scale=0.6)
@@ -169,6 +175,7 @@ class WeightedSamplerTest(unittest.TestCase):
             p = dist.cdf(d.get_bounds(idx)[1]) - dist.cdf(d.get_bounds(idx)[0])
             self.assertTrue(abs(p - h) < 0.1)
 
+        if self.PLOT:
         # plot histogram
         import matplotlib.pyplot as plt
         plt.clf()
@@ -180,7 +187,7 @@ class WeightedSamplerTest(unittest.TestCase):
         yline = [i*len(d) for i in d.probs]
         plt.plot(xline, yline, color="red")
 
-        plt.savefig("norm.png")
+            plt.savefig("docs/norm.png")
 
 
 if __name__ == '__main__':
