@@ -21,35 +21,35 @@ def md5(fname):
     return hash_md5.hexdigest()
 
 
-class DatasetPath:
-    SPLIT = ("train", "val", "test")
-    # we only work with static splits
-    def __init__(self, base_path: str, file_name_f_str: str = "neuroresults_random{}.gz", split: Optional[List[int]] = None) -> None:
-        self.base_path = base_path
-        self.file_name = file_name_f_str
-        # default split index is 1, 2, 3
-        self.split = split or [1, 2, 3]
+# class DatasetPath:
+#     SPLIT = ("train", "val", "test")
+#     # we only work with static splits
+#     def __init__(self, base_path: str, file_name_f_str: str = "neuroresults_random{}.gz", split: Optional[List[int]] = None) -> None:
+#         self.base_path = base_path
+#         self.file_name = file_name_f_str
+#         # default split index is 1, 2, 3
+#         self.split = split or [1, 2, 3]
 
-    def get_path_by_index(self, index):
-        return os.path.join(self.base_path, self.file_name.format(self.split[index]))
+#     def get_path_by_index(self, index):
+#         return os.path.join(self.base_path, self.file_name.format(self.split[index]))
 
 
-    def __getitem__(self, ref):
-        if isinstance(ref, str) and ref in self.SPLIT:
-            index = self.SPLIT.index(ref)
-            return self.get_path_by_index(index)
-        elif isinstance(ref, int) and ref >= 0 and ref < len(self.split):
-            return self.get_path_by_index(ref)
-        else:
-            raise RuntimeError("Invalid split reference.")
+#     def __getitem__(self, ref):
+#         if isinstance(ref, str) and ref in self.SPLIT:
+#             index = self.SPLIT.index(ref)
+#             return self.get_path_by_index(index)
+#         elif isinstance(ref, int) and ref >= 0 and ref < len(self.split):
+#             return self.get_path_by_index(ref)
+#         else:
+#             raise RuntimeError("Invalid split reference.")
 
-    def __str__(self) -> str:
-        "\n".join([self.get_path_by_index(i) for i in self.split])
+#     def __str__(self) -> str:
+#         "\n".join([self.get_path_by_index(i) for i in self.split])
 
-    # TODO: think if such a method makes sense
-    @staticmethod
-    def create_static_random_split():
-        pass
+#     # TODO: think if such a method makes sense
+#     @staticmethod
+#     def create_static_random_split():
+#         pass
 
 # type variables for type hinting
 BDType = TypeVar('BDType', bound="BelleIIDataset")
@@ -62,8 +62,18 @@ T = TypeVar('T')
 class BelleIIDataManager:
     _cache_dir = ".cache"
     def __init__(self, paths: List[str], logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None) -> None:
-        # filter must be a function that receives a dictionary of the form created by the init_data function
-        # it should return a filtered variant of this dataset in the same dictionary form
+        """Manages the loaded data. Can create arbitrary datasets out of the given data with given
+        filters applied.
+
+
+        Args:
+            paths (List[str]): List of paths to the dataset
+            logger (logging.Logger): python logger for debug output
+            out_dim (int, optional): Numer of output neurons. Can either be 2 or 1.
+                If out_dim=1 than the network is trained on z. Defaults to 2.
+            compare_to (Optional[str], optional): Path to a training to which one wants to compare.
+                Path should have the following format: baseline_v2/version_4. Defaults to None.
+        """
         # out_dim either 2 or 1 if only z should be compared
         super().__init__()
         self.paths = paths
@@ -72,17 +82,24 @@ class BelleIIDataManager:
         self.out_dim = out_dim
         self.compare_to = compare_to 
         self.load_data(self.compare_to)
+        self.data: Optional[Dict[str, torch.Tensor]] = None
 
         paths_str = '\n'.join(self.paths)
         self.logger.debug(
             f"Dataset:\n{paths_str}\nwith length {len(self)} done init")
-        print("done")
 
-    def __len__(self):
+    def __len__(self) -> int:
+        """Length of the dataset
+        """
         return len(self.data["x"])
 
 
     def load_data(self, compare_to: Optional[str]=None):
+        """Loads the csv data into self.data.
+
+        Args:
+            compare_to (Optional[str], optional): Same as in __init__. Defaults to None.
+        """
         # open and concatenate datasets
         dt = self.get_data_array()
 
@@ -94,6 +111,8 @@ class BelleIIDataManager:
             "expert": torch.Tensor(dt[:, 6]),
             # out_dim==2 -> -4:-1:2 out_dim==1 -> -4:-3:2
             "y_hat_old": torch.Tensor(dt[:, -4:(-1 if self.out_dim == 2 else -3):2]),
+            # TODO: problem this does not work for numbers larger than 2^24+1 (16 777 217)
+            # as the float can represent ints any more
             "idx": torch.arange(dt.shape[0]),
             "event": torch.Tensor(dt[:, 3]),
             "track": torch.Tensor(dt[:, 4]),
