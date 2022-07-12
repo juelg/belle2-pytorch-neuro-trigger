@@ -97,21 +97,21 @@ def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dic
     data = torch.stack(dataset)
 
     with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1, name_extension)), 'wb') as file:
-        torch.save(data, file)
+        torch.save(data[:,1:3], file)
 
 def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]) -> Tuple[float, float, float, float]:
     loss = {}
-    std = {}
+    z_diff_std = {}
     for expert in expert_pl_modules:
-        loss[expert.expert] = expert.crit(preds[expert.expert][:,1], preds[expert.expert][:,2]).item()
-        std[expert.expert] = torch.std(preds[expert.expert][:,1] - preds[expert.expert][:,2]).item()
+        loss[expert.expert] = expert.crit(preds[expert.expert][:,1:3], preds[expert.expert][:,3:5]).item()
+        z_diff_std[expert.expert] = torch.std(preds[expert.expert][:,1] - preds[expert.expert][:,3]).item()
 
     overall = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
 
-    loss_overall = expert.crit(overall[:,1], overall[:,2])
-    std_overall = torch.std(overall[:,1] - overall[:,2])
+    loss_overall = expert.crit(overall[:,1:3], overall[:,3:5])
+    z_diff_std_overall = torch.std(overall[:,1] - overall[:,3])
 
-    return loss_overall.item(), std_overall.item(), loss, std
+    return loss_overall.item(), z_diff_std_overall.item(), loss, z_diff_std
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
