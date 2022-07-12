@@ -173,7 +173,7 @@ class BelleIIDataset(Dataset):
     def __len__(self) -> int:
         return len(self.data["x"])
 
-    def __getitem__(self, idx: int) -> Tuple[float, float, float, float]:
+    def __getitem__(self, idx: int) -> Tuple[float, float, float, int]:
         if idx >= len(self):
             raise IndexError()
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]

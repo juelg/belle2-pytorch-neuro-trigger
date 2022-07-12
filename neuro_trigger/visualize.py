@@ -88,17 +88,19 @@ class DiffPlot(NTPlot):
         ax.legend()
         ax.grid()
         self.vis.plot(f"z-diff{suffix}", fig, save=save)
+
 class ShallowDiffPlot(NTPlot):
     def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
         # +/-1 diff plot -> just limit reco z on pm 1cm
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
-        diff = diff[(-1 <= y[:,0]) & (y[:,0] <= 1)]
+        diff = diff[list((-1 <= y[:,0]) & (y[:,0] <= 1))]
         fig, ax = plt.subplots(dpi=200)
 
         ax.hist(diff, bins=100)
         ax.plot([], [], ' ', label=f"Num: {len(diff)}")
         ax.plot([], [], ' ', label=f"Mean: {np.mean(diff):.{3}f}")
         ax.plot([], [], ' ', label=f"Std: {np.std(diff):.{3}f}")
+        # TODO: some kind of weird warning
         ax.plot([], [], ' ', label=f"Trimmed std: {scipy.stats.mstats.trimmed_std(diff, limits=(0.05, 0.05)):.{3}f}")
         ax.set(xlabel="z(Reco-Neuro)")
         ax.legend()
@@ -113,8 +115,12 @@ class StdPlot(NTPlot):
         y_sorted = np.sort(y[:,0])
         y_sorted = y_sorted[(-75 < y_sorted) & (y_sorted < 75)]
 
+        if len(y_sorted) == 0:
+            # avoid error in unit tests for empty y_sorted
+            return
+
         def f(yi):
-            return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
+            return scipy.stats.mstats.trimmed_std(z_diff[list((yi-1 < y[:,0]) & (y[:,0] < yi+1))], limits=(0.05, 0.05))
         stds = np.vectorize(f)(y_sorted[::100])
 
         fig, ax = plt.subplots(dpi=200)
