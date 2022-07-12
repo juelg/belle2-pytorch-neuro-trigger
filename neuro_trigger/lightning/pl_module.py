@@ -161,15 +161,15 @@ class NeuroTrigger(pl.LightningModule):
         loss_old = self.crit(ys, y_hat_olds)
         val_loss_vs_old_loss = loss/loss_old
         val_z_diff_std = torch.std(ys[:,0]-y_hats[:,0])
-        to_save = {"loss": loss.mean().item(), "loss_old": loss_old.mean().item(),
-                    "val_loss_vs_old_loss": val_loss_vs_old_loss.mean().item(),
-                    "val_z_diff_std": val_z_diff_std.mean().item()}
+        to_save = {f"{mode}_loss": loss.item(), f"{mode}_loss_old": loss_old.item(),
+                    f"{mode}_loss_vs_old_loss": val_loss_vs_old_loss.item(),
+                    f"{mode}_z_diff_std": val_z_diff_std.item()}
         # output final scores in json
-        with open(os.path.join(path, "result.csv"), "w") as f:
+        with open(os.path.join(path, f"{mode}_result.json"), "w") as f:
             json.dump(to_save, f)
 
         self.visualize.create_plots(
-                ys, y_hats, save=os.path.join(path, "post_training_plots"), create_baseline_plots=True)
+                ys, y_hats, save=os.path.join(path, f"{mode}_post_training_plots"), create_baseline_plots=True)
 
         # TODO: idea: send (random) subset of samples to common visualize
         # send here to save to our common loggin
