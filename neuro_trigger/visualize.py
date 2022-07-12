@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import os
 from typing import Optional, Tuple
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader
@@ -152,12 +153,12 @@ class Visualize:
         y_ = torch.cat(y_hat)
         return y, y_
 
-    def buf2tensor(self, buf):
+    def buf2tensor(self, buf: io.BytesIO) -> torch.Tensor:
         image = PIL.Image.open(buf)
         image = ToTensor()(image)
         return image
 
-    def fig2buf2tensor(self, fig):
+    def fig2buf2tensor(self, fig: Figure) -> torch.Tensor:
         if isinstance(fig, PIL.Image.Image):
             # if is already PIL image
             return ToTensor()(fig)
@@ -174,7 +175,7 @@ class Visualize:
         y = BelleIIDataset.to_physics(y)
         HistPlot(self).create_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
 
-    def plot(self, name, fig, save: Optional[str] = None):
+    def plot(self, name: str, fig: Figure, save: Optional[str] = None):
         if not save:
             # put figure to tensorboard
             img = self.fig2buf2tensor(fig)
@@ -186,7 +187,7 @@ class Visualize:
                 Path(save).mkdir(parents=True)
             fig.savefig(os.path.join(save, f"{name}.png"), dpi=200, bbox_inches='tight')
 
-    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix="", save: Optional[str]=None, create_baseline_plots: bool = False):
+    def create_plots(self, y: torch.Tensor, y_hat: torch.Tensor, suffix: str = "", save: Optional[str]=None, create_baseline_plots: bool = False):
         if isinstance(self.module.logger, DummyLogger):
             # this is a test run, dont create plots!
             return
@@ -204,7 +205,7 @@ class Visualize:
             plot_f(y, y_hat, suffix, save=save)
         plt.close('all')
 
-    def get_tb_logger(self):
+    def get_tb_logger(self) -> TensorBoardLogger:
         if isinstance(self.module.logger, TensorBoardLogger):
             return self.module.logger
         for logger in self.module.logger:
