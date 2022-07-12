@@ -64,7 +64,7 @@ class End2End(unittest.TestCase):
 
 # TODO: tests for distribution
 class FilterTest(unittest.TestCase):
-    TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
+    TEST_DATA = ["neuro_trigger/tests/test_data_filter.csv"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,15 +113,8 @@ class FilterTest(unittest.TestCase):
 
 class WeightedSamplerTest(unittest.TestCase):
     # TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
-    TEST_DATA = "neuro_trigger/tests/test_data.csv"
+    TEST_DATA = ["neuro_trigger/tests/test_data.csv"]
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger(), dataclass=partial(BelleIIDistDataset,
-    #             dist=norm(loc=-1, scale=1), n_buckets=11))
-    #     return norm(loc=conf_key["norm"]["mean"], scale=conf_key["norm"]["std"])
-    # elif "uniform" in conf_key:
-    #     return uniform(loc=conf_key["uniform"]["lower"], scale=conf_key["uniform"]["upper"])
 
     def test_distuniform(self):
         dist = uniform(loc=-1, scale=2)
