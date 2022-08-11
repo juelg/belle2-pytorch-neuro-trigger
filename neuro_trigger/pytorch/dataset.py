@@ -20,37 +20,6 @@ def md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
-
-# class DatasetPath:
-#     SPLIT = ("train", "val", "test")
-#     # we only work with static splits
-#     def __init__(self, base_path: str, file_name_f_str: str = "neuroresults_random{}.gz", split: Optional[List[int]] = None) -> None:
-#         self.base_path = base_path
-#         self.file_name = file_name_f_str
-#         # default split index is 1, 2, 3
-#         self.split = split or [1, 2, 3]
-
-#     def get_path_by_index(self, index):
-#         return os.path.join(self.base_path, self.file_name.format(self.split[index]))
-
-
-#     def __getitem__(self, ref):
-#         if isinstance(ref, str) and ref in self.SPLIT:
-#             index = self.SPLIT.index(ref)
-#             return self.get_path_by_index(index)
-#         elif isinstance(ref, int) and ref >= 0 and ref < len(self.split):
-#             return self.get_path_by_index(ref)
-#         else:
-#             raise RuntimeError("Invalid split reference.")
-
-#     def __str__(self) -> str:
-#         "\n".join([self.get_path_by_index(i) for i in self.split])
-
-#     # TODO: think if such a method makes sense
-#     @staticmethod
-#     def create_static_random_split():
-#         pass
-
 # type variables for type hinting
 BDType = TypeVar('BDType', bound="BelleIIDataset")
 T = TypeVar('T')
@@ -132,6 +101,15 @@ class BelleIIDataManager:
             self.data["y_hat_old"] = y_hat_old
 
     def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
+        """Calculates the dataset given the configured filters and returns the corresponding dataset object.
+
+        Args:
+            filter (Optional[dataset_filters.Filter], optional): Filter that should be applied. None means that no filtering is applied. Defaults to None.
+            dataset_class (Optional[Union[partial, BDType]], optional): Dataset class that should be used. Defaults to None which means that `BelleIIDataset` is used.
+
+        Returns:
+            BelleIIDataset: The resulting filtered dataset object
+        """
         # default values
         self.logger.debug(f"Size before filter: {len(self)}")
         filter = filter or dataset_filters.IdentityFilter()
@@ -144,6 +122,16 @@ class BelleIIDataManager:
         return dataset_class(data)
 
     def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
+        """Similar to the `dataset` function except that the ExpertFilter is automatically applied with the given expert.
+
+        Args:
+            expert (int, optional): Expert number, -1 means no expert filtering (one big dataset). Defaults to -1.
+            filter (Optional[dataset_filters.Filter], optional): Additional filters to apply, None means no other filters should be applied. Defaults to None.
+            dataset_class (Optional[Union[partial, BDType]], optional): Dataset class that should be used. Defaults to None which means that `BelleIIDataset` is used.
+
+        Returns:
+            BelleIIDataset: The resulting filtered dataset object
+        """
         filter = filter or dataset_filters.IdentityFilter()
         filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
         dataset = self.dataset(filter, dataset_class)
@@ -152,6 +140,13 @@ class BelleIIDataManager:
         return dataset
 
     def get_data_array(self) -> torch.Tensor:
+        """Returns the data tensor of the given dataset.
+
+        This function uses a caching mechanism to speed up data loading.
+        If a dataset is open the first time a cache object is created which is identified by the file's md5 hash and which can be open much faster.
+        Thus, the next time this function is called it is detected that the dataset has been cached and can be opened much faster.
+
+        """
         dts = []
         for cache_file, path in zip(self._cache_files, self.paths):
             # cache mechanism
@@ -165,16 +160,26 @@ class BelleIIDataManager:
         return torch.cat(dts, dim=0)
 
     def read_from_csv(self, path: str) -> torch.Tensor:
+        """This function is used whenever a dataset has not yet been cached and needs to be read from a CSV file.
+        """
         return torch.Tensor(np.loadtxt(path, skiprows=2))
 
 
     def save_cache(self, dt: Union[torch.Tensor, np.array], cache_file: str):
+        """Saves a dataset tensor with torch.save to be able to read it in much faster than parsing a CSV file.
+
+        Args:
+            dt (Union[torch.Tensor, np.array]): dataset tensor to save
+            cache_file (str): file path of the CSV file that should be saved, in order to calculate the md5 hash of it which is used for cache file's name.
+        """
         if not Path(self._cache_dir).exists():
             Path(self._cache_dir).mkdir()
         with open(os.path.join(self._cache_dir, cache_file), "wb") as f:
             torch.save(dt, f)
 
     def open_cache(self, cache_file: str) -> torch.Tensor:
+        """Opens a cached dataset given its file name. This file name must be inferred with the md5 hash with the original dataset's filename
+        """
         with open(os.path.join(self._cache_dir, cache_file), "rb") as f:
             dt = torch.load(f)
             if isinstance(dt, np.ndarray):
@@ -221,9 +226,14 @@ class BelleIIDataset(Dataset):
 
     @property
     def requires_shuffle(self) -> bool:
+        """Defines whether the dataset needs to be shuffled by the dataloader or is inherently
+        shuffeled as the samples are randomly picked anyway and thus dataloader shuffling is not required.
+        """
         return True
 
 class BelleIIDistDataset(BelleIIDataset):
+    """Implements dataset reweighting with a given scipy distribution.
+    """
     # TODO: should this return batches?
 
     def __init__(self, *args, dist, n_buckets: int = 21, inf_bounds: bool = False, **kwargs) -> None:

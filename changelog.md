@@ -11,11 +11,12 @@ Versions are tagged in git under v0.x
 - [ ] plot creation for already trained weights -> write cli where weights are loaded
 - [ ] only train on the first reco track of a track
 - [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
+-> problems as they are somewhat in different processes and therefore cant really communicate, solve with shared memory maybe
 - [ ] distributions into the same plot to make them more comparable
-- [ ] baseline model v2 with BN and Relu
-- [ ] add gradient clipping
+- [x] baseline model v2 with BN and Relu
+- [ ] add gradient clipping -> should be added
 - [ ] add categories in config
-- [ ] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
+- [x] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [x] train with different batchsizes and learning rates per expert
 - [ ] write readme page
 - [x] add unit tests
@@ -31,6 +32,7 @@ Versions are tagged in git under v0.x
 - [x] filter functions
 - [x] native filter datasets
 - [ ] config as python objects
+- [ ] jupyter notebook with graphics? or with run?
 
 
 ideas from kai

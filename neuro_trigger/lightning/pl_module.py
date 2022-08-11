@@ -113,6 +113,15 @@ class NeuroTrigger(pl.LightningModule):
 
 
     def training_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int) -> torch.tensor:
+        """Function to perform one training step (forward pass for a given)
+
+        Args:
+            batch (Tuple[torch.Tensor, ...]): Given batch, tuple shape is defined by the dataset
+            batch_idx (int): overall batch index, ith batch from the whole training dataset
+
+        Returns:
+            torch.tensor: loss of the forward pass
+        """
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         # TODO set more weight on z for learning and the loss function
@@ -121,6 +130,19 @@ class NeuroTrigger(pl.LightningModule):
         return loss
 
     def validation_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int) -> Tuple[torch.Tensor, ...]:
+        """One forward pass given a batch from the validation dataset
+
+        Logs loss and further metrics to pytorch lightning loggers.
+        Returns several data for later metric computation.
+
+        Args:
+            batch (Tuple[torch.Tensor, ...]): batch from the validation dataset
+            batch_idx (int): index of that batch
+
+        Returns:
+            Tuple[torch.Tensor, ...]: network output, expected output (ground truth), validation loss of the batch,
+                validation loss vs validation loss from the experiment that we compare to
+        """
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
@@ -138,7 +160,15 @@ class NeuroTrigger(pl.LightningModule):
         return y, y_hat, loss, val_loss_vs_old_loss
 
     def validate(self, path: str, mode: str = "val"):
-        # data = {"train": self.train_dataloader, "eval": self.val_dataloader, "test": self.test_dataloader}[mode]()
+        """Completes a validation forward pass.
+
+        Calculates the overall loss and further metrics over the whole validation dataset.
+        Creates plots that visualize certain metrics defined in the `Visualize` class.
+
+        Args:
+            path (str): path to store the calculated metrics, usally the experts logging folder
+            mode (str, optional): One can also validate the train or test dataset. Options are "train", "val" and "test". Defaults to "val".
+        """
         mode = {"train": 0, "val": 1, "test": 2}[mode]
         # output dataset -> no, do this for all experts outside of the training
         # create plots
@@ -177,12 +207,23 @@ class NeuroTrigger(pl.LightningModule):
 
 
     def test_step(self, batch: Tuple[torch.Tensor, ...], batch_idx: int):
+        """Batch step on the test dataset
+
+        Args:
+            batch (Tuple[torch.Tensor, ...]): batch from the test set
+            batch_idx (int): index of the batch
+        """
         x, y = batch[0], batch[1]
         y_hat = self.model(x)
         loss = self.crit(y_hat, y)
         self.log("test_loss", loss)
 
     def validation_epoch_end(self, outputs: List[Tuple[torch.Tensor, ...]]):
+        """Called when validation epoch has finished. Creates tensorboard plots.
+
+        Args:
+            outputs (List[Tuple[torch.Tensor, ...]]): Accumulated outputs of validation_step
+        """
         # outputs are a list of the tuples that have been returned by the validation
         self.visualize.create_plots(
             torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
@@ -202,6 +243,10 @@ class NeuroTrigger(pl.LightningModule):
                           drop_last=False, pin_memory=True)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
+        """Returns the optimizer that should be used.
+
+        Supported optimizers must also be configured in `__init__.py` in order to have the supported parameters all on that page.
+        """
         if self.hparams.optim not in supported_optimizers:
             raise RuntimeError(f"Optimizer {self.hparams.optim} is not supported! __init__.py defines supported optimizers.")
 

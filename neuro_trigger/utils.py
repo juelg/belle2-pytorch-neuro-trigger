@@ -36,7 +36,16 @@ class ThreadLogFilter(logging.Filter):
         return record.threadName == self.thread_name
 
 
-def snap_source_state(log_folder: str):
+def snap_source_state(log_folder: str) -> str:
+    """reads out the git commit id of the last commit and writes it a a log file
+    clalled "git_id.txt" in the given `log_folger`.
+
+    Args:
+        log_folder (str): Folder where to save the file with the commit id.
+
+    Returns:
+        str: commit id for further processing
+    """
     # get git commit id
     os.system(
         f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
@@ -44,10 +53,12 @@ def snap_source_state(log_folder: str):
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
     with open(os.path.join(log_folder, "git_id.txt"), "r") as f:
-        return f.read()
+        return f.read().split("\n")[0]
 
 
 def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode: str = "val", filter: Optional[Filter] = None) -> Dict[int, torch.tensor]:
+    # TODO: think if we can reuse the code from the pytorch module (function validate)
+    # TODO: add y_hat_old for evaluation
     # None means original filters
     mode = MODE2IN[mode]
     preds = {}
@@ -60,12 +71,13 @@ def create_dataset_with_predictions_per_expert(expert_pl_modules: List[Lightning
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
+                # TODO: this implicity converts the index to float32!
                 preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y], dim=1))
 
     for expert in expert_pl_modules:
-        # cat and not stack because we have batches -> bullshit: stack adds to the same dimension, cat creates a new one (like tuple) -> bullshit bullshit
-        # first one was correct
+        # cat and not stack because we have batches
         preds[expert.expert] = torch.cat(preds[expert.expert])
+    # TODO: think if this can be returned more pretty
     return preds
 
 
