@@ -50,8 +50,8 @@ class BelleIIDataManager:
         self.logger = logger
         self.out_dim = out_dim
         self.compare_to = compare_to 
-        self.load_data(self.compare_to)
         self.data: Optional[Dict[str, torch.Tensor]] = None
+        self.load_data(self.compare_to)
 
         paths_str = '\n'.join(self.paths)
         self.logger.debug(
