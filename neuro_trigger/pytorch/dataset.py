@@ -188,28 +188,73 @@ class BelleIIDataManager:
 
 
 class BelleIIDataset(Dataset):
+    """Dataset representation of the Belle II CSV dataset
+    """
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
 
     def __init__(self, data: Dict[str, torch.Tensor]):
+        """
+        Args:
+            data (Dict[str, torch.Tensor]): data in dictionary form as returned by `load_data` in BelleIIDataManager
+        """
         self. data = data
 
     def __len__(self) -> int:
+        """Returns dataset length
+        """
         return len(self.data["x"])
 
     def __getitem__(self, idx: int) -> Tuple[float, float, float, int]:
-        if idx >= len(self):
+        """Returns the ith sample
+
+        Args:
+            idx (int): index
+
+        Raises:
+            IndexError: For idx < 0 or idx > len
+
+        Returns:
+            Tuple[float, float, float, int]: x, y, y_hat_old, idx
+        """
+        if idx >= len(self) or idx < 0:
             raise IndexError()
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
     @staticmethod
     def scale(x: Union[float, torch.Tensor], lower: float, upper: float, lower_new: float, upper_new: float) -> Union[torch.Tensor, float]:
+        """Scales input linearly: [lower, upper] -> [lower_new, upper_new]
+
+        Args:
+            x (Union[float, torch.Tensor]): Number or tensor that should be scaled
+            lower (float): lower bound of the current interval of x
+            upper (float): upper bound of the current interval of x
+            lower_new (float): lower bound of the new interval where x should be mapped to
+            upper_new (float): upper bound of the new interval where x should be mapped to
+
+        Returns:
+            Union[torch.Tensor, float]: mapped x
+        """
         # linear scaling
         # first scale to [0, 1], then scale to new interval
         return ((x-lower) / (upper-lower)) * (upper_new-lower_new) + lower_new
 
     @staticmethod
     def to_physics(x: torch.Tensor) -> torch.Tensor:
+        """Mapps x from the [-1, 1] interval to the real physical interval in the measured units from Belle II
+
+        If x has only one dimension it is assumed that this dimension represends z. Thus a mapping from
+        [-1, 1] to [-100, 100] (centimenters) is performed.
+
+        If x has two dimensions, it is assumed that the first dimension is z and the second is theta.
+        z is mapped as described above. Theta is mapped as follows: [-1, 1] -> [10, 170] (degree)
+ 
+        Args:
+            x (torch.Tensor): z (theta) tensor that should be mapped to the physical measured interval
+
+        Returns:
+            torch.Tensor: Mapped z (and theta) to the physical interval in the respective units
+        """
         x_ = x.clone()
         x_[:,0] = BelleIIDataset.scale(x_[:,0], -1, 1, *BelleIIDataset.Z_SCALING)
         if x_.shape[1] > 1:
@@ -218,6 +263,8 @@ class BelleIIDataset(Dataset):
 
     @staticmethod
     def from_physics(x: torch.Tensor) -> torch.Tensor:
+        """Like to_physics but in the opposit direction: Map values to [-1, 1] interval
+        """
         x_ = x.clone()
         x_[:,0] = BelleIIDataset.scale(x_[:,0], *BelleIIDataset.Z_SCALING, -1, 1)
         if x_.shape[1] > 1:
@@ -237,6 +284,14 @@ class BelleIIDistDataset(BelleIIDataset):
     # TODO: should this return batches?
 
     def __init__(self, *args, dist, n_buckets: int = 21, inf_bounds: bool = False, **kwargs) -> None:
+        """
+        Args:
+            dist (scipy.stats): Scipy distribution to sample the buckets
+            n_buckets (int, optional): Number of buckets for sample picking. Defaults to 21.
+            inf_bounds (bool, optional): Wether the most left and most right bucket include the probability
+                towards infinity or whether they dont include this probability and normalize the resulting distribution
+                to a sum of 1. Defaults to False.
+        """
         super().__init__(*args, **kwargs)
         self.sort_z: List[Tuple[int, float]] = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
         self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
@@ -260,10 +315,37 @@ class BelleIIDistDataset(BelleIIDataset):
 
 
     def get_prob_for_bounds(self, lower: float, upper: float) -> float:
+        """Given the scipy distribution, this calulates the CDF difference between lower and upper
+        bound
+
+        _extended_summary_
+
+        Args:
+            lower (float): lower bound the wanted interval of the density function
+            upper (float): uppper bound the wanted interval of the density function
+
+        Returns:
+            float: Integrated probability
+        """
         return self.dist.cdf(upper) - self.dist.cdf(lower)
     
 
     def get_bounds(self, bucket: int, inf_bounds: Optional[bool]=None) -> Tuple[float, float]:
+        """Interval bounds of the given bucket distributed within [-1,1].
+
+        Args:
+            bucket (int): Bucket number
+            inf_bounds (Optional[bool], optional): If set to False the outer most buckets are
+                undbouned towards +/- inf.
+                Example: bucket=0,inf_bounds=False,self.n_buckets=2 -> [-inf, 0]
+                If set to True the interval is closed at -/+ 1.
+                Example: bucket=0,inf_bounds=True,self.n_buckets=2 -> [-1, 0]
+                Defaults to None which takes the
+                value of `self.inf_bounds`.
+
+        Returns:
+            Tuple[float, float]: The inveral which the bucket represents.
+        """
         if inf_bounds is None:
             inf_bounds = self.inf_bounds
         lower = 2*(bucket/self.n_buckets - 0.5)
@@ -277,6 +359,8 @@ class BelleIIDistDataset(BelleIIDataset):
 
 
     def get_bucket(self, z: float) -> int:
+        """Returns the bucket for a given z.
+        """
         return math.floor((z/2 + 0.5)*self.n_buckets)
 
     def __len__(self) -> int:
@@ -284,10 +368,26 @@ class BelleIIDistDataset(BelleIIDataset):
 
     @property
     def requires_shuffle(self) -> bool:
-        # does not require further shuffeling by the dataloader
+        """Does not require further shuffeling by the dataloader as samples are randomly picked anyway.
+        """
         return False
 
     def __getitem__(self, idx: int) -> Tuple[float, float, float, float]:
+        """Returns a radomly picked sample according to the following strategy:
+
+        1. Sample a z-bucket according to the given scipy distribution e.g. normal or uniform distribution.
+        2. Within the bucket the a sample is uniforml randomly selected.
+
+        Args:
+            idx (int): ith sample, ignored
+
+        Raises:
+            IndexError: Used to decide the end of an epoch: Not when the every sample has been seen
+                but rather when we just iterated n times.
+
+        Returns:
+            Tuple[float, float, float, float]: Data sample: x, y, y_hat_old, idx
+        """
         if idx >= len(self):
             raise IndexError()
         # sample a bucket
@@ -299,8 +399,18 @@ class BelleIIDistDataset(BelleIIDataset):
         return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
 
     def uniform_random_choice(self, a: Iterable[T]) -> T:
-        # Note somehow np.random.choice scales very badly for large arrays
-        # so we rather do the two lines our self
+        """Selects uniformly random sample from array/Iterable a.
+        (T is a type variable)
+
+        Note that somehow np.random.choice scales very badly for large arrays, so we rather write
+        the two lines ourself!
+
+        Args:
+            a (Iterable[T]): Array/Iterable where one wants to get a random sample
+
+        Returns:
+            T: Selected sample.
+        """
         idx = random.randint(0, len(a)-1)
         return a[idx]
 
