@@ -34,7 +34,7 @@ pip install -r requirements.txt
 If you late want to deactivate the virtual environment type `deactivate`.
 
 ## Start a Training
-In order to start a training one first needs to define or choose a training configuration in `neuro_trigger/configs.py`. How to do this will be discussed in a later section.
+In order to start a training one first needs to define or choose a training configuration in [`neuro_trigger/configs.py`](neuro_trigger/configs.py). How to do this will be discussed in a later section.
 There are several confgurations already defined. For example `baseline_v2` which is the baseline network from BASF2.
 To train it run the following commands inside the `neuro_trigger` folder:
 ```shell
@@ -84,12 +84,12 @@ If you use VSCode for development and debugging you can also go into the "Run an
 The run configurations are defined in the `.vscode`. They will automatically confiure the path and virtual env correctly.
 They also support debugging breakpoints set in VSCode.
 
-The "Training" run configuration uses `normal_distribution` as pre-set config. However, this can easily be changed in `.vscode/launch.json` under `args`.
+The "Training" run configuration uses `normal_distribution` as pre-set config. However, this can easily be changed in [`.vscode/launch.json`](.vscode/launch.json) under `args`.
 
 
 ## Tests
 
-The project also supports the execution of unit tests. The tests are defined in `neuro_trigger_tests/test.py`. Every method starting with `test_` in a class subclassing from `unittest.TestCase` will be executed.
+The project also supports the execution of unit tests. The tests are defined in [`neuro_trigger_tests/test.py`](neuro_trigger_tests/test.py). Every method starting with `test_` in a class subclassing from `unittest.TestCase` will be executed.
 
 Note that running the tests can take a few minutes as some end to end tests take quite a bit of time
 to finish.
@@ -97,7 +97,7 @@ To execute the tests run the following command:
 ```shell
 python neuro_trigger/tests/test.py
 ```
-As for the debug trainings, there is also a VSCode run configuration in `.vscode/launch.json` which allows you to run and debug the tests
+As for the debug trainings, there is also a VSCode run configuration in [`.vscode/launch.json`](.vscode/launch.json) which allows you to run and debug the tests
 in VSCode's "Run and Debug" Tab. The configuration is named "Tests".
 
 
@@ -127,10 +127,10 @@ How the
 
 ## Config
 (TODO: should also be possible to hand over a handcrafted config python dictionary)
-A training is usally configured using `configs` dictionary in the [configs.py](configs.py) file.
+A training is usally configured using `configs` dictionary in the [configs.py](neuro_trigger/configs.py) file.
 A configuration is represented by an entry in the dictionary.
 The key should be a string which describes the training's configuration.
-This key can later be used in [main.py](main.py) as described in the section "Start a Training" to run a training with the specified config.
+This key can later be used in [main.py](neuro_trigger/main.py) as described in the section "Start a Training" to run a training with the specified config.
 
 Following configuration items are supported:
 * `version` (float): Version number of the training.
@@ -142,14 +142,14 @@ Following configuration items are supported:
 * `out_size` (int): Network's output size. Currently supported are 2 and 1. 2 means that both z and theta are trained on and 1 means that the network is only trained on **z**.
 * `workers` (int): Worker processes for dataloading. As the dataset is rather small in our usecase this should rather be a conservative number e.g. less than five.
 * `epochs` (int): For how many epochs should each expert train.
-* `model` (str): Network model to use. Model strings are defined in [__init__.py](__init__.py).
-* `loss` (str): Loss function to use for the training. Loss function strings are defined in [__init__.py](__init__.py).
-* `optim` (str): Optimizer class to use. Optimizer string definitions are defined in [__init__.py](__init__.py) and [lightning/pl_module.py] in function `configure_optimizers`.
-* `act` (str): Activation function that should be used in the model. The activation function strings are defined in [__init__.py](__init__.py).
+* `model` (str): Network model to use. Model strings are defined in [__init__.py](neuro_trigger/__init__.py).
+* `loss` (str): Loss function to use for the training. Loss function strings are defined in [__init__.py](neuro_trigger/__init__.py).
+* `optim` (str): Optimizer class to use. Optimizer string definitions are defined in [__init__.py](neuro_trigger/__init__.py) and [lightning/pl_module.py](neuro_trigger/lightning/pl_module.py) in function `configure_optimizers`.
+* `act` (str): Activation function that should be used in the model. The activation function strings are defined in [__init__.py](neuro_trigger/__init__.py).
 * `experts` (List[int]): This list defines which experts one wants to train. For example `[0, 1, 2, 3, 4]` means to train all experts and `[1]` means to only train the expert 1. There is one special case: `[-1]` means to train the data of all experts in one big training, so there will be no expert differentiation then. This is mostly used for debug purposes as there is less multi threading invoved in that case.
 * `compare_to` (Optional[str]): Path to the log folder of a previous training to which one wants to compare this training. This is used for metrics which for example compare the loss of the current training to a loss of an old training. It is assumed that all trainings are located in a folder called `log`. Thus the path should be relative to this log-folder. For example one wants to compare to the training which has its log file in `log/baseline_v2/version_3` then `compare_to = "baseline_v2/version_3"`. Default `None` which compares to the old training values hard coded into the dataset.
 * `load_pre_trained_weights` (Optional[str]): Every training saves the trained weights into a `weights.json`. This option allows to load theses weights and continue training from them instead of reinitializing the weights again. The passed string should be the path to the respective json file e.g. `log/baseline_v2/version_7/weights.json`. Default is `None` which means that the weights are randomly initialized.
-* `filter` (str): Filter that should be applied to the dataset. Filters are defined in [pytorch/dataset_filters.py](pytorch/dataset_filters.py). To specifiy the filters one has to use valid python code that produces objects of the classes defined in `dataset_filters.py`. Examples:
+* `filter` (str): Filter that should be applied to the dataset. Filters are defined in [pytorch/dataset_filters.py](neuro_trigger/pytorch/dataset_filters.py). To specifiy the filters one has to use valid python code that produces objects of the classes defined in `dataset_filters.py`. Examples:
   * `dataset_filters.DuplicateEventsFilter()`
   * `dataset_filters.ConCatFilter([dataset_filters.Max2EventsFilter(), dataset_filters.DuplicateEventsFilter()])`
 * `dist` (Dict): Used for reweighted datasampling as described in Section `TODO`. It splits the z-interval into `n_buckets` and samples the training batches according to a given stocatstical distribution out of the buckets. This configuration item consists of a dictionary itself with the following items:
