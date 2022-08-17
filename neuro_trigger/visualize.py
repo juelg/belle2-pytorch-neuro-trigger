@@ -120,7 +120,7 @@ class StdPlot(NTPlot):
             return
 
         def f(yi):
-            return scipy.stats.mstats.trimmed_std(z_diff[list((yi-1 < y[:,0]) & (y[:,0] < yi+1))], limits=(0.05, 0.05))
+            return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
         stds = np.vectorize(f)(y_sorted[::100])
 
         fig, ax = plt.subplots(dpi=200)
@@ -204,11 +204,13 @@ class Visualize:
             # create plot once for old nn data
             self.should_create_baseline_plots = False
             self.create_baseline_plots(save=save)
+        self.module.file_logger.debug(f"Done baseline plots for expert {self.module.expert}")
 
         y, y_hat = y.cpu()[:self.MAX_SAMPLES], y_hat.cpu()[:self.MAX_SAMPLES]
         y, y_hat = BelleIIDataset.to_physics(y), BelleIIDataset.to_physics(y_hat)
         for plot_f in self.plots:
             plot_f(y, y_hat, suffix, save=save)
+            self.module.file_logger.debug(f"Done plots {plot_f} for expert {self.module.expert}")
         plt.close('all')
 
     def get_tb_logger(self) -> TensorBoardLogger:
