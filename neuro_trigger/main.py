@@ -60,7 +60,7 @@ def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger)
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str, hparams: EasyDict, data: Tuple[str, str, str], version: int, fast_dev_run: bool = False, overfit_batches: Union[int, float] = 0.0, debug: bool = False) -> Tuple[pl.Trainer, NeuroTrigger]:
+def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str, hparams: EasyDict, data: Tuple[str, str, str], version: int, mean_tb_logger: MeanTBLogger, fast_dev_run: bool = False, overfit_batches: Union[int, float] = 0.0, debug: bool = False) -> Tuple[pl.Trainer, NeuroTrigger]:
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
@@ -77,13 +77,12 @@ def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str,
     )
     callbacks = [early_stop_callback, model_checkpoint]
 
-    mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
 
     pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
     trainer = pl.Trainer(
         logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
                     CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
-                    MeanLoggerExp(version, mean_tb_logger, expert)],
+                    MeanLoggerExp(mean_tb_logger.queue, version, mean_tb_logger, expert)],
         # row_log_interval=1,
         # track_grad_norm=2,
         # weights_summary=None,
@@ -181,7 +180,10 @@ def main(config: str, data: Tuple[str, str, str], debug: bool = False, solo_expe
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(hparams, f, indent=2, sort_keys=True)
 
-    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, debug=debug) for expert_i in range(len(experts))]
+    mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
+    mean_tb_logger.start_thread()
+
+    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, debug=debug) for expert_i in range(len(experts))]
 
     # config: load_pre_trained_weights with path to json weights in order to train with preinialized weights
     if hparams.get("load_pre_trained_weights"):
@@ -202,6 +204,7 @@ def main(config: str, data: Tuple[str, str, str], debug: bool = False, solo_expe
     if len(experts) != 1:
         for t in threads:
             t.join()
+    mean_tb_logger.stop_thread()
     # create dataset with predictions
     expert_modules = [i[1] for i in trainers_modules]
 

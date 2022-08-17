@@ -1,7 +1,8 @@
-from typing import Dict, List
+from typing import List
 from pytorch_lightning.loggers import TensorBoardLogger
-import torch
 import numpy as np
+from multiprocessing import Queue
+from threading import Thread
 
 
 from pytorch_lightning.utilities import rank_zero_only
@@ -13,11 +14,12 @@ class MeanLoggerExp(LightningLoggerBase):
     """Lighting logger for each expert that is just an interface between lighting and
     MeanTBLogger. Thus, all logs are just forwarded to the MeanTBLogger object.
     """
-    def __init__(self, version: int, mean_tb_logger: 'MeanTBLogger', expert: int = -1):
+    def __init__(self, queue: Queue, version: int, mean_tb_logger: 'MeanTBLogger', expert: int = -1):
         super().__init__()
         self.expert = expert
         self._version = version
         self.mean_tb_logger = mean_tb_logger
+        self.queue = queue
 
 
     @property
@@ -45,7 +47,8 @@ class MeanLoggerExp(LightningLoggerBase):
     def log_metrics(self, metrics, step):
         # metrics is a dictionary of metric names and values
         # your code to record metrics goes here
-        self.mean_tb_logger.log_dict(self.expert, metrics, step)
+        for metric, value in metrics.items():
+            self.queue.put((self.expert, metric, step, value))
 
     @rank_zero_only
     def save(self):
@@ -61,27 +64,35 @@ class MeanLoggerExp(LightningLoggerBase):
         pass
 
 
-
-
-class MeanTBLogger:
+class MeanTBLogger(Thread):
     """Wrapper around TensorBoardLogger
 
     Gathers metrics from all experts, waits until all are there then logs the mean over all experts.
     """
-    def __init__(self, path: str, experts: List[int], name=""):
+    def __init__(self, path: str, experts: List[int], name: str = ""):
+        Thread.__init__(self)
         self.logger = TensorBoardLogger(path, name=name)
         # expert (this will be dict as -1 as key is possible), metric, step
         self.log_data = {expert: {} for expert in experts}
+        self.queue = Queue()
+        self.running = False
 
-    def check_log(self, metric, step, amount_log_entries):
+    def start_thread(self):
+        self.running = True
+        self.start()
+    
+    def stop_thread(self):
+        self.running = False
+        self.queue.put("stop")
+        self.join()
+
+    def check_log(self, metric: str, step: int, amount_log_entries: int):
         lens = [len(self.log_data[expert][metric]) for expert in self.log_data]
         if all([l>=amount_log_entries for l in lens]):
             self.logger.log_metrics({metric: np.mean([self.log_data[expert][metric][amount_log_entries-1] 
                                                         for expert in self.log_data])}, step)
 
-
     def log(self, expert: int, metric: str, step: int, value: float):
-        # dynamically add metric to log dict
         if metric not in self.log_data[expert]:
             for exp in self.log_data:
                 self.log_data[exp][metric] = []
@@ -89,7 +100,11 @@ class MeanTBLogger:
 
         self.check_log(metric, step, len(self.log_data[expert][metric]))
 
-    def log_dict(self, expert: int, metric_dict: Dict[str, float], step: int):
-        for metric, value in metric_dict.items():
+    def run(self):
+        while self.running:
+            data = self.queue.get(block=True)
+            if isinstance(data, str):
+                return
+            expert, metric, step, value = data
             self.log(expert, metric, step, value)
 
