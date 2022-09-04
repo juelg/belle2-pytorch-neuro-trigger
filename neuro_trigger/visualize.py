@@ -25,15 +25,35 @@ class NTPlot(ABC):
         self.vis = vis
 
     @abstractmethod
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor) -> Tuple[Figure, str]:
+        """When subclassed this method should create a matplotlib figure and return it together with
+        a name. The figure will then be pushed to tensorboard and saved after training in the log folder.
+
+        Args:
+            y (torch.tensor): networks output, usally z and theta (however only z if we only train on z)
+            y_hat (torch.tensor): wanted output, ground truth
+
+        Returns:
+            Tuple[Figure, str]: matplotlib figure and a name identifing the figure
+        """
         pass
 
     def __call__(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
-        self.create_plot(y, y_hat, suffix, save)
+        """Object of the class can be called like a function. Calls the underlying `create_plot` method
+        with the respective arguments and pushes the plot to tensorboard unsing the self.vis.plot method.
+
+        Args:
+            y (torch.tensor): networks output, usally z and theta (however only z if we only train on z)
+            y_hat (torch.tensor): wanted output, ground truth
+            suffix (str, optional): suffix after the identifing name to differentiate between plots with different data. Defaults to "".
+            save (Optional[str], optional): Whether the created plot should be saved to the given path. If None the plot won't be saved. Defaults to None.
+        """
+        fig, name = self.create_plot(y, y_hat)
+        self.vis.plot(name+suffix, fig, save=save)
     
 
 class ZPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
         # scatter histogram
         fig, ax = plt.subplots(dpi=200)
         y = y[:, 0].numpy()
@@ -58,10 +78,10 @@ class ZPlot(NTPlot):
         ax.set_xlim(BelleIIDataset.Z_SCALING) # [-100, 100]
         ax.set_ylim(BelleIIDataset.Z_SCALING)
 
-        self.vis.plot(f"z-plot{suffix}", fig, save=save)
+        return fig, "z-plot"
 
 class HistPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", xlabel: str = "Neuro Z", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
         # todo adapt labels
         fig, ax = plt.subplots(dpi=200)
         y_hat = y_hat[:, 0].numpy()
@@ -70,11 +90,11 @@ class HistPlot(NTPlot):
         ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
         ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
         ax.legend()
-        ax.set(xlabel=xlabel)
-        self.vis.plot(f"z-hist{suffix}", fig, save=save)
+        ax.set(xlabel="Neuro Z")
+        return fig, "z-hist"
 
 class DiffPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         # entries, std, mean
         fig, ax = plt.subplots(dpi=200)
@@ -87,10 +107,10 @@ class DiffPlot(NTPlot):
         ax.set_xlim(BelleIIDataset.Z_SCALING)
         ax.legend()
         ax.grid()
-        self.vis.plot(f"z-diff{suffix}", fig, save=save)
+        return fig, "z-diff"
 
 class ShallowDiffPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
         # +/-1 diff plot -> just limit reco z on pm 1cm
         diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
         diff = diff[list((-1 <= y[:,0]) & (y[:,0] <= 1))]
@@ -105,10 +125,10 @@ class ShallowDiffPlot(NTPlot):
         ax.set(xlabel="z(Reco-Neuro)")
         ax.legend()
         ax.grid()
-        self.vis.plot(f"z-shallow-diff{suffix}", fig, save=save)
+        return fig, "z-shallow-diff"
 
 class StdPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor, suffix: str = "", save: Optional[str] = None):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
         y, y_hat = y[:50000], y_hat[:50000]
         # TODO: dont use sorted and just plot x'es or dots
         z_diff = y[:, 0].numpy() - y_hat[:, 0].numpy()
@@ -131,7 +151,7 @@ class StdPlot(NTPlot):
         ax.grid()
         ax.set(xlabel="reco z")
         ax.set(ylabel="std (reco-neuro)")
-        self.vis.plot(f"z-std{suffix}", fig, save=save)
+        return fig, "z-std"
 
 class Visualize:
     MAX_SAMPLES = 1000000
