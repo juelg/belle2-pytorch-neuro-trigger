@@ -336,7 +336,7 @@ class BelleIIDistDataset(BelleIIDataset):
         Args:
             bucket (int): Bucket number
             inf_bounds (Optional[bool], optional): If set to False the outer most buckets are
-                undbouned towards +/- inf.
+                unbounded towards +/- inf.
                 Example: bucket=0,inf_bounds=False,self.n_buckets=2 -> [-inf, 0]
                 If set to True the interval is closed at -/+ 1.
                 Example: bucket=0,inf_bounds=True,self.n_buckets=2 -> [-1, 0]
@@ -344,7 +344,7 @@ class BelleIIDistDataset(BelleIIDataset):
                 value of `self.inf_bounds`.
 
         Returns:
-            Tuple[float, float]: The inveral which the bucket represents.
+            Tuple[float, float]: The interval which the bucket represents.
         """
         if inf_bounds is None:
             inf_bounds = self.inf_bounds
