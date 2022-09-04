@@ -31,7 +31,7 @@ Activate the virtual environmnet and install the dependencies:
 source venv/bin/activate
 pip install -r requirements.txt
 ```
-If you late want to deactivate the virtual environment type `deactivate`.
+If you later want to deactivate the virtual environment type `deactivate`.
 
 ## Start a Training
 In order to start a training one first needs to define or choose a training configuration in [`neuro_trigger/configs.py`](neuro_trigger/configs.py). How to do this will be discussed in a later section.
@@ -48,7 +48,9 @@ python neuro_trigger/main.py baseline_v2 -p
 The `-p` argument stands for production and means that no debugging is currently performed. This will ask you to provide a short description for your
 experiment to let you remeber it easier and then it will start training with the parameters specified in the configuration that was passed as the first argument.
 
+
 `main.py` is the main entry point for each training and has a minimal CLI which supports the following arguments:
+TODO: remake
 ```bash
 usage: main.py [-h] [-p] mode
 
@@ -91,14 +93,14 @@ The "Training" run configuration uses `normal_distribution` as pre-set config. H
 
 The project also supports the execution of unit tests. The tests are defined in [`neuro_trigger_tests/test.py`](neuro_trigger_tests/test.py). Every method starting with `test_` in a class subclassing from `unittest.TestCase` will be executed.
 
-Note that running the tests can take a few minutes as some end to end tests take quite a bit of time
+Note that running the tests can take a few minutes as some end-to-end tests take quite a bit of time
 to finish.
 To execute the tests run the following command:
 ```shell
 python neuro_trigger/tests/test.py
 ```
 As for the debug trainings, there is also a VSCode run configuration in [`.vscode/launch.json`](.vscode/launch.json) which allows you to run and debug the tests
-in VSCode's "Run and Debug" Tab. The configuration is named "Tests".
+in VSCode's "Run and Debug" tab. The configuration is named "Tests".
 
 
 TODO: Explain unit test framework?
@@ -230,22 +232,105 @@ configs = {
 }
 ```
 
+## Extensability
 
-## Software Architcture
+### Software Architcture
 The overall software architecture is shown as a class diagramm in the following figure.
 
 ![](docs/class_diagram.svg)
 
-TODO: specific parts and general flow
-- folder structure
+There are three prebuild ways to extend the architecture in an easy manner:
+- add new tensorboard plots
+- add new dataset filters
+- add new neural network models
+All of these extension ways will be discussed in detail in the following sections.
 
-## Folder Datastructure
+TODO: specific parts and general flow
+
+
+### Project Folder Structure
+The repository is structured in the following way:
+The folder [docs](docs) contains files relevant for this readme documentation such the UML diagram.
+[.vscode](.vscode) contains configuration files for the development in visual studio code.
+[changelog.md](changelog.md) contains already implemented and planned features which should be realized in specific release versions.
+[requirements.txt](requirements.txt) contains the python dependencies for the python code.
+[neuro_trigger](neuro_trigger) is the python module which contains the actual python code.
+It self is split into
+- the [lightning module](neuro_trigger/lightning) which contains code that uses pytorch lightning features such as the pytroch lightning module
+- the [pytorch module](neuro_trigger/pytorch) which contains pytorch relevant code such as the network models or the dataloader
+- the [test module](neuro_trigger/test) which contains tests code in order to quickly check for easy-to-find bugs
+Furthermore, the neuro_trigger also contains the [config.py](neuro_trigger/config.py) file which contains all training configs that can be used for training the neuro trigger. The [main.py](neuro_trigger/main.py) which contains the command line interface and code to start the training.
+The [utils.py](neuro_trigger/utils.py) contains helper funcitons and that like.
+Fiannly, the [visualize.py](neuro_trigger/visualize.py) contains code for the plots send to tensorboard.
 
 
 ## Visualization
+TODO: adapt dia UML to the new schema
+The [visualize module](neuro_trigger/visualize.py) can be extended with new plots which can be displayed in tensoboard.
+In order to create a new plot the class `NTPlot` in [visualize.py](neuro_trigger/visualize.py) has to be subcallsed and the
+`create_plot` method must be overriden. It gets the following arguments:
+- `y` (torch.tensor): the networks output, usally z and theta (however only z if only trained on z)
+- `y_hat` (torch.tensor): ground truth, values of z and theta that we trian on
+and is expexted to return
+- matplotlib.figure.Figure: A matplotlib figure object. One can get this object for example with `matplotlib.pyplot.subplots`
+- str: A name which identifies the respecive plot
+
+A minimal example for a z histogram can be seen below:
+```python
+class HistPlot(NTPlot):
+    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
+        fig, ax = plt.subplots(dpi=200)
+        y_hat = y_hat[:, 0].numpy()
+        ax.hist(y_hat, bins=100)
+        ax.set(xlabel="Neuro Z")
+        return fig, "z-hist"
+```
+TODO: how to add plots to the process: attribute list
+
 ## Filtering
 - how does it work
 - how can one extend it
+
+Dataset filters are a convient way to apply filter function to the dataset and thus only train on a subset of the data which contains certain specified features..
+Dataset filters are located in [dataset_filters.py](neuro_trigger/pytroch/dataset_filters.py).
+In order to add new filters one has to subclass the `Filter` class and at least implement the `fltr` method which takes
+`data` (Dict[str, torch.Tensor]) as only argument which will contain the the whole dataset in dictionary form as loaded by the `BelleIIDataManager` class.
+The method is required to return a torch.Tensor which represents a boolean mask with the entries set to true that are ought to be kept and the
+rest set to false.
+This allows one to use numpy array / pytorch tensor comparinson syntax.
+
+The following example keeps only samples where z is postive:
+```python
+class PositiveZFilter(Filter):
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+        z_data = data['x'][:,0]
+        return z_data > 0
+```
+If it is more convinient to produce an array which contains the indexes of the elements that should be kept in the filter, the
+`index2mask_array` method can be used to convert the array to a boolean mask. It takes the index array and the length as input and returns the mask array.
+The following example filters out all odd indexes and thus halves the dataset using `index2mask_array`:
+
+```python
+class EvenFilter(Filter):
+    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+        r = np.arange(len(data['x']))
+        mask = r % 2 == 0
+        keep_idxs = r[mask]
+        return index2mask_array(keep_idxs, len(data['x']))
+```
+Note that boolean arrays can be negated using the `~` operator. E.g. `~a` inverts all entries in `a` if `a` is a boolean array.
+
+Filters can be combined using the `ConCatFilter` and the dataset length can be limited e.g. for developing using the `RangeFilter`. For details see the Config section.
+
+
+## Model
+- how to create new models
+
 ## Reweighting
+
 ### Uniformly
+![](docs/uniform.png)
+
 ### With Normal Distribution
+![](docs/norm_inf_bounds.png)
+![](docs/norm_non_inf_bounds.png)
