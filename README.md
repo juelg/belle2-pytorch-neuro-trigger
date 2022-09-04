@@ -112,19 +112,55 @@ Each training will create a log folder which one can find under the following pa
 ```shell
 log/<config name e.g. baseline_v2>/version_x
 ```
-How the 
+Furthermore, every production run is recorded with its log folder path and a timestamp in `log/log.txt`.
 
-- tensorboard: plots
-- plots
-- csv: outcome
-- summary.json: outcome + hparams
-- log log -> log of trainings run
-- git hash, git diff
-- resulting datasets
+You will find the following files in experiment log folder:
+- `expert_x.log`: log/debug output of the respective expert
+- `app.log`: log/debug output of the whole training which includes the output of all experts.
+- `git_diff.txt`: git diff / git patch file of the current changes in the git repository.
+- `git_id.txt`: git commit id from the last commit.
+- `summary.json`: Json file which contains the hyperparameters, git diff and if the training has finished also the train, validation and test losses and further metrics of each expert. These metrics can for example be used to easily compare the performance of several trainings.
+- `expert_x` folder
+
+If the training has already finished, the following files will also be in the log directory:
+- `weights.json`: Json file which includes the weights of all experts
+- `pred_data_randomx.csv`: CSV file of the dataset for random1 to random3 with `ScaleZ`, `RawZ`, `ScaleTheta` and `RawTheta` replaced by the output of the trained experts.
+- `prediction_randomx.pt`: pytorch binary format file which includes the prediction outcome of the dataset random1 to random3 with the trained experts.
+
+Furthermore, each expert has its own log folder named `expert_x`. In this folder the following subfolders can be found:
+- `ckpts`: The checkpoint folder includes checkpoints of this experts training weights. `last.ckpt` is the state of the weights after training has finished and `epoch=xxx-step=xxxxxx.ckpt` is a snapshot of the weights where the expert showed its peak performance accoring to the validation loss.
+- `csv/version_0`: Metrics are logged in CSV form in `metrics.csv`. Logs are created every x iterations and every epoch. Some metrics are only calculated every epoch, that's why some values are missing for some entries. The folder also includes `hparams.yaml` which includes the hyperparameters for the expert.
+- `tb/version_0`: Tensorboard folder. `events.out.tfevents.xxx` contains all tensorboard data, thus this file must be opened when using tensorboard. It will be updated during the training process. The folder also contains a `hparams.yaml` which contains the same hyperparamters as in the csv folder.
+
+When the training has finished the expert specific log folder also contains a `result.json` which contains the following metrics: loss, loss_old, val_loss_vs_old_loss and val_z_diff_std. These metrics show the experts performance in a numeric way. There will also be a folder named `post_training_plots` which contains the same plots which are also pushed to tensorboard but after training in an image format.
+
+### Opening Tensorboard
+Tensorboard should already be installed in your virtual environment. If not install it using
+```shell
+pip3 install tensorboard
+```
+You can either open a single tensobard file or a folder which contains several tensorboard files. In the latter case tensorboard will give a selection list of all training files it found.
+
+Example for a single file:
+```shell
+python3 -m tensorboard --logdir=. log/baseline_v2/version_7/expert_0/tb/version_0/events.out.tfevents.1656581096.belleserv01.2510181.1
+```
+Example for a whole folder:
+```shell
+python3 -m tensorboard --logdir=. log/baseline_v2/version_7
+```
+
+Tensorboard will open a webserver where it will display the recorded metrics. In order to set host ip and port use the `--host` and `--port` arguments.
+
+Often tensorboard will not be running on the local machine but on a remote host. In that case port forwarding (also supported in the GUI of visual studio code) can be very useful.
+For basic SSH port forwarding use the following command (forwards local port 6000 to port 6006 on the server which is tensorboard default port):
+```shell
+ ssh -L 6000:localhost:6006 user@ssh-host.de
+```
+
+In this example the tensorboard website can then be opened in any browser under the following address: [localhost:6000](localhost:6000)
 
 
-
-## Evaluate trainings
 
 
 ## Config
@@ -285,11 +321,11 @@ class HistPlot(NTPlot):
         ax.set(xlabel="Neuro Z")
         return fig, "z-hist"
 ```
-TODO: how to add plots to the process: attribute list
+
+In order to add or remove certain plots from the training pipeline add or remove the object creation from the the `self.plots` list in the `__init__` method of the `Visualize` class at the bottom of the [visualize.py](neuro_trigger/visualize.py) file.
+
 
 ## Filtering
-- how does it work
-- how can one extend it
 
 Dataset filters are a convient way to apply filter function to the dataset and thus only train on a subset of the data which contains certain specified features..
 Dataset filters are located in [dataset_filters.py](neuro_trigger/pytroch/dataset_filters.py).
@@ -326,7 +362,42 @@ Filters can be combined using the `ConCatFilter` and the dataset length can be l
 ## Model
 - how to create new models
 
+Network models are defined in [model.py in the pytorch module](neuro_trigger/pytorch/model.py). Pytorch lightning uses normal pytorch modules. For more information on pytorch modules see the [pytorch documentation](https://pytorch.org/docs/stable/notes/modules.html).
+
+It is important that a network model for neuro trigger receives the following arguments in its `__init__` method:
+- `inp` (`int`, optional): Number of inputs (input neurons). Should default to 27.
+- `out` (`int`, optional): Number of outputs (output neurons). Setting this to one will only train on Z. Shoulde default to 2.
+- `act` (`Optional[nn.Module]`, optional): Activation function. Should default to `nn.Tanh`.
+
+For example the baseline model with one layer of 81 neurons, bias and Tangens hyperbolicus activation function could look like this:
+
+
+```python
+class BaselineModel(nn.Module):
+    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module]=None):
+        super().__init__()
+        act = act or nn.Tanh()
+        self.l1 = nn.Linear(inp, 81),
+        self.l2 = nn.Linear(81, out),
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.l1(x)
+        x = self.act(x)
+        x = self.l2(x)
+        return self.act(x)
+```
+
+Note the difference to the actual implementation with [`nn.Sequential`](https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html): these are two different ways to define networks
+
+
+
 ## Reweighting
+- explain the problem
+- explain the idea
+- pseudo code of the algorithm
+- 2 distributions tried out
+- where it is and reference to the config section
+
 
 ### Uniformly
 ![](docs/uniform.png)
@@ -334,3 +405,9 @@ Filters can be combined using the `ConCatFilter` and the dataset length can be l
 ### With Normal Distribution
 ![](docs/norm_inf_bounds.png)
 ![](docs/norm_non_inf_bounds.png)
+
+
+## Results
+
+
+
