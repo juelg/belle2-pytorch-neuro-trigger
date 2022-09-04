@@ -93,6 +93,14 @@ class MeanTBLogger(Thread):
                                                         for expert in self.log_data])}, step)
 
     def log(self, expert: int, metric: str, step: int, value: float):
+        """Logs to the mean tensorboard metric graph
+
+        Args:
+            expert (int): expert number
+            metric (str): metric name
+            step (int): logging step
+            value (float): value to log
+        """
         if metric not in self.log_data[expert]:
             for exp in self.log_data:
                 self.log_data[exp][metric] = []

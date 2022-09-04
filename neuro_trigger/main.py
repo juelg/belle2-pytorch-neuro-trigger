@@ -43,6 +43,12 @@ test =  ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_defa
 DATA_PROD = (train, val, test)
 
 def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger):
+    """Runs training and validation
+
+    Args:
+        trainer_module (Tuple[pl.Trainer, NeuroTrigger]): pytorch lightning trainer and lightning module
+        logger (logging.Logger): logger to use for the training
+    """
     try:
         # train
         logger.info(f"Expert {trainer_module[1].expert} start training.")
@@ -60,7 +66,40 @@ def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger)
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str, hparams: EasyDict, data: Tuple[str, str, str], version: int, mean_tb_logger: MeanTBLogger, fast_dev_run: bool = False, overfit_batches: Union[int, float] = 0.0, debug: bool = False) -> Tuple[pl.Trainer, NeuroTrigger]:
+def create_trainer_pl_module(expert_i: int,
+                             experts: List[int],
+                             log_folder: str,
+                             hparams: EasyDict,
+                             data: Tuple[List[str],
+                             List[str],
+                             List[str]],
+                             version: int,
+                             mean_tb_logger: MeanTBLogger,
+                             fast_dev_run: bool = False,
+                             overfit_batches: Union[int, float] = 0.0,
+                             debug: bool = False
+    ) -> Tuple[pl.Trainer, NeuroTrigger]:
+    """Initializes the pytorch lightning module and the pytorch lightning trainer.
+    
+    This function should be executed for each expert.
+
+    Args:
+        expert_i (int): ith expert
+        experts (List[int]): list of experts
+        log_folder (str): _description_
+        hparams (EasyDict): hyperparameter dict
+        data (Tuple[List[str], List[str], List[str]]): data paths
+        version (int): training version
+        mean_tb_logger (MeanTBLogger): tensor board logger object
+        fast_dev_run (bool, optional): Whether to let pytorch lightning perform a fast dev run. Only used for debugging or in tests. Defaults to False.
+        overfit_batches (Union[int, float], optional): If pytorch lightning should overfit this amount of batches or percentage. See pl.Trainer docu for further information. Only used for debugging or in tests. Defaults to 0.0.
+        debug (bool, optional): Whether we run in debug mode. Defaults to False.
+
+    Returns:
+        Tuple[pl.Trainer, NeuroTrigger]: pytorch lightning trainer and module
+    """
+
+    # this seems unnecassary
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
@@ -99,15 +138,33 @@ def create_trainer_pl_module(expert_i: int, experts: List[int], log_folder: str,
         default_root_dir=os.path.join(log_folder, f"expert_{expert}"),
         # auto_select_gpus=True,
         # enable_pl_optimizer=True,
-        enable_progress_bar=debug,
+        # enable_progress_bar=debug,
     )
     return trainer, pl_module
 
 def write_global_journal(base_log: str, config: str, journal_name: str = "log.txt"):
+    """Writes timestamp and log path to a global training log
+
+    Args:
+        base_log (str): base log folder
+        config (str): key of the config to use defined in `configs.py`
+        journal_name (str, optional): path to the global log file. Defaults to "log.txt".
+    """
     with open(os.path.join(base_log, journal_name), "a") as f:
         f.write(f"{datetime.now()}: {config}\n")
 
 def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
+    """Creates logging folder, initializes logger per expert and writes the run to a global training log file
+
+    Args:
+        config (str): key of the config to use defined in `configs.py`
+        debug (bool, optional): Whether debug mode is enable. If True the training will log to a folder in `/tmp`. Defaults to False.
+        solo_expert (bool, optional): Whether to only train on a single expert with all data. Defaults to False.
+
+    Returns:
+        Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]: Hyperparameters dict, folder to log to,
+            List of expert numbers, experiment version (used in the log folder), List of expert names e.g. `expert_0`, python logger to log debug messages to
+    """
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
     hparams = get_hyperpar_by_name(config)
     if debug:
@@ -167,7 +224,18 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) ->
     return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config: str, data: Tuple[str, str, str], debug: bool = False, solo_expert: bool = False) -> str:
+def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool = False, solo_expert: bool = False) -> str:
+    """Wirtes commit id and diff, runs training and creates output dataset
+
+    Args:
+        config (str): key of the config to use defined in `configs.py`
+        data (Tuple[List[str], List[str], List[str]]): datasets as train, validation and test datasets
+        debug (bool, optional): _description_. Defaults to False.
+        solo_expert (bool, optional): Whether to only train on a single expert with all data. Defaults to False.
+
+    Returns:
+        str: Log folder path
+    """
     hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert)
 
     # save git commit and git diff in file
@@ -243,6 +311,9 @@ def parse_args():
                         help='config mode to use, must be defined in config.py')
     parser.add_argument('-p', '--production',
                         help='if not given code will run in debug mode', action='store_true')
+    parser.add_argument('-s', '--solo_expert',
+                        help='Whether onebig expert for training should be used or the data should be trained via the specified amount of experts',
+                        action='store_true')
     # if not production then logs will go to /tmp and only one expert will be used
     args = parser.parse_args()
     return args
@@ -253,4 +324,4 @@ if __name__ == "__main__":
     debug = not args.production
     print(debug)
     # main(config = "baseline_v4_softsign", data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
-    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=debug)
+    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=args.solo_expert)

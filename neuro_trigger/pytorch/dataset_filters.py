@@ -1,4 +1,4 @@
-from typing import Iterable, List
+from typing import Dict, Iterable, List
 from abc import ABC, abstractmethod
 import numpy as np
 
@@ -39,7 +39,7 @@ class Filter(ABC):
     set to true that should be kept.
     """
     @abstractmethod
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Should implement a concrete filter: Can calculate which elements to keep given the dataset
 
         Args:
@@ -61,7 +61,7 @@ class ConCatFilter(Filter):
         Filter.__init__(self)
         self.filters = filters
 
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         # vectors for data to keep
         keep_vecs = [filter.fltr(data) for filter in self.filters]
         # AND the keep vectors
@@ -85,7 +85,7 @@ class ExpertFilter(Filter):
         """
         Filter.__init__(self)
         self.expert = expert
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         if self.expert == -1:
             # no expert filter should be applied in that case
             return torch.ones(len(data['x'])).bool()
@@ -95,7 +95,7 @@ class ExpertFilter(Filter):
 class Max2EventsFilter(Filter):
     """Keeps only events with less than 3 tracks
     """
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         # create map event -> y -> tracks
         event_map = {}
         for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
@@ -119,7 +119,7 @@ class Max2EventsFilter(Filter):
 class DuplicateEventsFilter(Filter):
     """If there is several data for a single track, only the first one is kept and the others are filtered out
     """
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         # create map event,y -> tracks
         event_map = {}
         for idx, (e, y) in enumerate(zip(data["event"], data["y"])):
@@ -143,7 +143,7 @@ class RangeFilter(Filter):
         """
         self.rng = torch.tensor(np.array([i for i in rng]))
 
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         assert len(self.rng) <= len(data['x'])
         assert min(self.rng) >= 0
         assert max(self.rng) < len(data['x'])
