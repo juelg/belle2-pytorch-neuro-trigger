@@ -49,6 +49,8 @@ class NTPlot(ABC):
             save (Optional[str], optional): Whether the created plot should be saved to the given path. If None the plot won't be saved. Defaults to None.
         """
         fig, name = self.create_plot(y, y_hat)
+        if fig == None and name == None:
+            return
         self.vis.plot(name+suffix, fig, save=save)
     
 
@@ -81,7 +83,7 @@ class ZPlot(NTPlot):
         return fig, "z-plot"
 
 class HistPlot(NTPlot):
-    def create_plot(self, y: torch.tensor, y_hat: torch.tensor):
+    def create_plot(self, _: Optional[torch.tensor], y_hat: torch.tensor, xlabel: str = "Neuro Z"):
         # todo adapt labels
         fig, ax = plt.subplots(dpi=200)
         y_hat = y_hat[:, 0].numpy()
@@ -90,7 +92,7 @@ class HistPlot(NTPlot):
         ax.plot([], [], ' ', label=f"Mean: {np.mean(y_hat):.{3}f}")
         ax.plot([], [], ' ', label=f"Std: {np.std(y_hat):.{3}f}")
         ax.legend()
-        ax.set(xlabel="Neuro Z")
+        ax.set(xlabel=xlabel)
         return fig, "z-hist"
 
 class DiffPlot(NTPlot):
@@ -137,10 +139,10 @@ class StdPlot(NTPlot):
 
         if len(y_sorted) == 0:
             # avoid error in unit tests for empty y_sorted
-            return
+            return None, None
 
         def f(yi):
-            return scipy.stats.mstats.trimmed_std(z_diff[(yi-1 < y[:,0]) & (y[:,0] < yi+1)], limits=(0.05, 0.05))
+            return scipy.stats.mstats.trimmed_std(z_diff[np.array((yi-1 < y[:,0]) & (y[:,0] < yi+1))], limits=(0.05, 0.05))
         stds = np.vectorize(f)(y_sorted[::100])
 
         fig, ax = plt.subplots(dpi=200)
@@ -199,7 +201,11 @@ class Visualize:
             self.data.data["y"], self.data.data["y_hat_old"], suffix="-old", save=save)
         y = self.data.data["y"][:self.MAX_SAMPLES]
         y = BelleIIDataset.to_physics(y)
-        HistPlot(self).create_plot(None, y, suffix="-gt", xlabel="Reco Z", save=save)
+
+        hp = HistPlot(self)
+        suffix = "-gt"
+        fig, name = hp.create_plot(None, y, xlabel="Reco Z")
+        self.plot(name+suffix, fig, save=save)
 
     def plot(self, name: str, fig: Figure, save: Optional[str] = None):
         if not save:

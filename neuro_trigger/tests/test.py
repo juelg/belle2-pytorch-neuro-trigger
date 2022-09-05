@@ -1,7 +1,10 @@
 from functools import partial
 import logging
+import os
 import unittest
 import sys
+
+from neuro_trigger.lightning.mean_tb_logger import MeanTBLogger
 sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 import numpy as np
 
@@ -19,8 +22,6 @@ from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_var
 # run fast dev run and overfit batches
 
 
-
-
 class End2End(unittest.TestCase):
     TEST_DATA = ["neuro_trigger/tests/test_data_filter.csv"]
 
@@ -30,20 +31,30 @@ class End2End(unittest.TestCase):
 
         hparams, log_folder, experts, version, experts_str, logger = prepare_vars(used_config, debug=True)
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, fast_dev_run=True) for expert_i in range(len(experts))]
+        mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
+        mean_tb_logger.start_thread()
 
+        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, fast_dev_run=True) for expert_i in range(len(experts))]
 
         trainers_modules[0][0].fit(trainers_modules[0][1])
+
+        mean_tb_logger.stop_thread()
 
 
     def test_end2end_overfit(self):
         used_config = "base"
         data = (self.TEST_DATA, self.TEST_DATA, self.TEST_DATA)
 
+
         hparams, log_folder, experts, version, experts_str, logger = prepare_vars(used_config, debug=True)
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, overfit_batches=1) for expert_i in range(len(experts))]
+        mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
+        mean_tb_logger.start_thread()
+
+        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, overfit_batches=1) for expert_i in range(len(experts))]
         trainers_modules[0][0].fit(trainers_modules[0][1])
+
+        mean_tb_logger.stop_thread()
 
 
     # complete blackbox training with 2 epochs and check if all files exist
@@ -114,7 +125,7 @@ class FilterTest(unittest.TestCase):
 class WeightedSamplerTest(unittest.TestCase):
     # TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
     TEST_DATA = ["neuro_trigger/tests/test_data.csv"]
-    PLOT = False
+    PLOT = False 
 
 
     def test_distuniform(self):
@@ -140,28 +151,31 @@ class WeightedSamplerTest(unittest.TestCase):
         self.assertEqual(len(z), len(d))
 
         if self.PLOT:
-        # plot histogram
-        import matplotlib.pyplot as plt
-        plt.clf()
-        plt.hist(z, n_buckets, range=(-1, 1))
-        # xline = (-1, 1)
-        # yline = (len(d)/n_buckets, len(d)/n_buckets)
-        # plt.plot(xline, yline, color="green")
-            plt.hist(z_unchanged, n_buckets, range=(-1, 1))
-        xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
-        yline = [i*len(d) for i in d.probs]
-        # yline = (1/n_buckets, 1/n_buckets)
-        plt.plot(xline, yline, color="red")
+            # plot histogram
+            import matplotlib.pyplot as plt
+            plt.clf()
+            plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
+            # xline = (-1, 1)
+            # yline = (len(d)/n_buckets, len(d)/n_buckets)
+            # plt.plot(xline, yline, color="green")
+            plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
+            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
+            yline = [i*len(d) for i in d.probs]
+            # yline = (1/n_buckets, 1/n_buckets)
+            plt.plot(xline, yline, color="red", label="Distribution")
+            plt.xlabel("z (m)")
+            plt.ylabel("count")
+            plt.legend()
 
-            plt.savefig("docs/uniform.png")
+            plt.savefig("docs/uniform_label.png")
 
-    def test_distnorm(self):
+    def test_distnorm_inf_bounds(self):
         dist = norm(loc=0, scale=0.6)
         n_buckets=11
         # np.random.seed(1234)
         dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
-                dist=dist, n_buckets=n_buckets))
+                dist=dist, n_buckets=n_buckets, inf_bounds=True))
         d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
         z_unchanged = [i[1][0].item() for i in d_unchanged]
@@ -176,18 +190,54 @@ class WeightedSamplerTest(unittest.TestCase):
             self.assertTrue(abs(p - h) < 0.1)
 
         if self.PLOT:
-        # plot histogram
-        import matplotlib.pyplot as plt
-        plt.clf()
-        plt.hist(z, n_buckets, range=(-1, 1))
-        plt.hist(z_unchanged, n_buckets, range=(-1, 1))
-        xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
-        # print(xline)
-        # print(d.probs)
-        yline = [i*len(d) for i in d.probs]
-        plt.plot(xline, yline, color="red")
+            # plot histogram
+            import matplotlib.pyplot as plt
+            plt.clf()
+            plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
+            plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
+            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
+            yline = [i*len(d) for i in d.probs]
+            plt.plot(xline, yline, color="red", label="Distribution")
+            plt.xlabel("z (m)")
+            plt.ylabel("count")
+            plt.legend()
 
-            plt.savefig("docs/norm.png")
+            plt.savefig("docs/norm_inf_bounds.png")
+
+    def test_distnorm_non_inf_bounds(self):
+        dist = norm(loc=0, scale=0.6)
+        n_buckets=11
+        # np.random.seed(1234)
+        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
+                dist=dist, n_buckets=n_buckets, inf_bounds=False))
+        d_unchanged = dm.dataset()
+        z = [i[1][0].item() for i in d]
+        z_unchanged = [i[1][0].item() for i in d_unchanged]
+        hist, bin_edges = np.histogram(z, n_buckets, range=(-1, 1))
+        hist = hist / np.sum(hist)
+        self.assertEqual(len(z), len(d))
+
+        # compare to expected values
+        for idx, h in enumerate(hist):
+            # p = dist.cdf(bin_edges[idx+1]) - dist.cdf(bin_edges[idx])
+            p = dist.cdf(d.get_bounds(idx)[1]) - dist.cdf(d.get_bounds(idx)[0])
+            self.assertTrue(abs(p - h) < 0.1)
+
+        if self.PLOT:
+            # plot histogram
+            import matplotlib.pyplot as plt
+            plt.clf()
+            plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
+            plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
+            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
+            yline = [i*len(d) for i in d.probs]
+            plt.plot(xline, yline, color="red", label="Distribution")
+            plt.xlabel("z (m)")
+            plt.ylabel("count")
+            plt.legend()
+
+            plt.savefig("docs/norm_non_inf_bounds.png")
 
 
 if __name__ == '__main__':
