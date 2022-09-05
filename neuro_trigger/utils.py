@@ -61,10 +61,21 @@ def snap_source_state(log_folder: str) -> str:
         return f.read().split("\n")[0]
 
 
-def create_dataset_with_predictions_per_expert(expert_pl_modules: List[LightningModule], mode: str = "val", filter: Optional[Filter] = None) -> Dict[int, torch.tensor]:
-    # TODO: think if we can reuse the code from the pytorch module (function validate)
-    # TODO: add y_hat_old for evaluation
-    # None means original filters
+def create_dataset_with_predictions_per_expert(
+        expert_pl_modules: List[LightningModule],
+        mode: str = "val",
+        filter: Optional[Filter] = None
+    ) -> Dict[int, torch.tensor]:
+    """Create predictions for a specific dataset using a specific filter for all experts
+
+    Args:
+        expert_pl_modules (List[LightningModule]): Expert lightning modules
+        mode (str, optional): Dataset mode: "train", "val" and "test" are possible. Defaults to "val".
+        filter (Optional[Filter], optional): Filter which should be applied to the dataset. If None than no filter is applied. Defaults to None.
+
+    Returns:
+        Dict[int, torch.tensor]: Prediction dataset for each expert which includes idx, y_hat and y
+    """
     mode = MODE2IN[mode]
     preds = {}
     for expert in expert_pl_modules:
@@ -76,17 +87,32 @@ def create_dataset_with_predictions_per_expert(expert_pl_modules: List[Lightning
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
-                # TODO: this implicity converts the index to float32!
-                preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y], dim=1))
+                # Attention: this implicitly converts the index to float32!
+                preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y, y_hat_old], dim=1))
 
     for expert in expert_pl_modules:
         # cat and not stack because we have batches
         preds[expert.expert] = torch.cat(preds[expert.expert])
-    # TODO: think if this can be returned more pretty
+
     return preds
 
 
-def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode: str = "val", name_extension: str = ""):
+def save_csv_dataset_with_predictions(
+        expert_pl_modules: List[LightningModule],
+        preds: Dict[int, torch.tensor],
+        path: str,
+        mode: str = "val",
+        name_extension: str = ""
+    ):
+    """Saves given prediction to a CSV file
+
+    Args:
+        expert_pl_modules (List[LightningModule]): Expert lightning modules
+        preds (Dict[int, torch.tensor]): prediction dictionary with predictions for each expert
+        path (str): path to store the csv file excluding the file's name.
+        mode (str, optional): Dataset mode: "train", "val" and "test" are possible. Defaults to "val".
+        name_extension (str, optional): Extension that should be added to the file's name. Defaults to "".
+    """
     mode = MODE2IN[mode]
     idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
     data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
@@ -106,7 +132,24 @@ def save_csv_dataset_with_predictions(expert_pl_modules: List[LightningModule], 
         file.seek(0)
         file.write(CSV_HEAD + content)
 
-def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor], path: str, mode: str = "val", name_extension: str = ""):
+def save_predictions_pickle(
+        expert_pl_modules: List[LightningModule],
+        preds: Dict[int, torch.tensor],
+        path: str,
+        mode: str = "val",
+        name_extension: str = ""
+    ):
+    """Saves predictions as pickle files / torch binary format
+
+    _extended_summary_
+
+    Args:
+        expert_pl_modules (List[LightningModule]): Expert lightning modules
+        preds (Dict[int, torch.tensor]): prediction dictionary with predictions for each expert
+        path (str): path to store the pickle's file excluding the file's name.
+        mode (str, optional): Dataset mode: "train", "val" and "test" are possible. Defaults to "val".
+        name_extension (str, optional): Extension that should be added to the file's name. Defaults to "".
+    """
     mode = MODE2IN[mode]
     dataset = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
     dataset = sorted(dataset, key=lambda x: x[0])
@@ -116,7 +159,22 @@ def save_predictions_pickle(expert_pl_modules: List[LightningModule], preds: Dic
     with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1, name_extension)), 'wb') as file:
         torch.save(data[:,1:3], file)
 
-def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]) -> Tuple[float, float, float, float]:
+def get_loss(
+        expert_pl_modules: List[LightningModule],
+        preds: Dict[int, torch.tensor]
+    ) -> Tuple[float, float, Dict[int, float], Dict[int, float]]:
+    """Calculates loss and the standard deviation of the z difference for each expert and also
+    averaged over all experts
+
+    Args:
+        expert_pl_modules (List[LightningModule]): Expert lightning modules
+        preds (Dict[int, torch.tensor]): prediction dictionary with predictions for each expert
+
+    Returns:
+        Tuple[float, float, float, float]: loss averaged over all experts,
+            standard deviation of the z difference averaged over all experts,
+            loss per expert (dict), standard deviation of the z difference per expert (dict)
+    """
     loss = {}
     z_diff_std = {}
     for expert in expert_pl_modules:
@@ -132,6 +190,36 @@ def get_loss(expert_pl_modules: List[LightningModule], preds: Dict[int, torch.te
 
 
 def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
+    """Saves weights of the pytorch networks to a json file
+
+    The json file will have the following format (only in case the BaselineModel is used):
+    
+    {
+        "expert_x": {
+            "shapes": {
+                "model.net.0.weight": [81, 27],
+                "model.net.0.bias": [81],
+                "model.net.2.weight": [2, 81],
+                "model.net.2.bias": [2]
+            },
+            "weights": {
+                "model.net.0.weight": [[...]],
+                "model.net.0.bias": [...],
+                "model.net.2.weight": [[...]],
+                "model.net.2.bias": [...]
+            }
+        }
+    }
+    where "..." refers to numeric data. "shapes" tells what dimensions the data arrays have
+    and "weights" gives the actual data for these weight tensors.
+
+    Note that the number jumps from 0 to 2 as there is an activation layer in between which does
+    not contain any weights
+
+    Args:
+        expert_pl_modules (List[LightningModule]): Expert lightning modules
+        path (str): path where the json file should be saved excluding the file name
+    """
     exps = OrderedDict()
     for expert_module in expert_pl_modules:
         desc = {}
@@ -146,7 +234,24 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
         json.dump(exps, f)
 
 
-def load_from_checkpoint(config: str, version: str = "version_1", experts: Optional[List] = None) -> List[NeuroTrigger]:
+def load_from_checkpoint(
+        config: str,
+        version: str = "version_1",
+        experts: Optional[List[str]] = None
+    ) -> List[NeuroTrigger]:
+    """Loads the pytorch lightning module initialized with the weights from a given checkpoint
+
+    Args:
+        config (str): (hyperparameter's) configuration that was used for the training of the checkpoint that should be loaded
+        version (str, optional): Training set version. Have a look in the log/log.txt file to find out the version number quickly.
+            Defaults to "version_1".
+        experts (Optional[List], optional): String name of the experts that where used during training. None means that experts 0 to 4 are tried to load.
+            Defaults to None.
+
+    Returns:
+        List[NeuroTrigger]: List of the pytorch lightning modules
+    """
+
     experts = experts or [f"expert_{i}" for i in range(5)]
 
     expert_paths = [os.path.join("log", config, version, expert, "ckpts") for expert in experts]
@@ -165,12 +270,42 @@ def load_from_checkpoint(config: str, version: str = "version_1", experts: Optio
     return models
 
 
-def load_from_json(json_path: str, config: str, version: str = "version_1", experts: Optional[List] = None) -> List[NeuroTrigger]:
+def load_from_json(
+        json_path: str,
+        config: str,
+        version: str = "version_1",
+        experts: Optional[List] = None
+    ) -> List[NeuroTrigger]:
+    """Loads the pytorch lightning module with initialized weights from a given json file
+    (produced with the `expert_weights_json` function or at least with the same format)
+
+    Args:
+        json_path (str): path to the json file including the weights
+        config (str): (hyperparemter's) config name used for the training
+        version (str, optional): Training set version. Have a look in the log/log.txt file to find out the version number quickly.
+            Defaults to "version_1".
+        experts (Optional[List], optional): String name of the experts that where used during training. None means that experts 0 to 4 are tried to load.
+            Defaults to None.
+
+    Returns:
+        List[NeuroTrigger]: _description_
+    """
+
     models  = load_from_checkpoint(config, version, experts)
 
     return load_json_weights_to_module(json_path, models)
 
 def load_json_weights_to_module(json_path: str, models: List[NeuroTrigger]) -> List[NeuroTrigger]:
+    """Loads weights contained in a given json file (produced by or having the same format as 
+    the `expert_weights_json` function) into given pytorch lighting modules
+
+    Args:
+        json_path (str): path to the json file
+        models (List[NeuroTrigger]): list of pytorch lightning expert modules
+
+    Returns:
+        List[NeuroTrigger]: _description_
+    """
     for model in models:
         expert = model.expert
         # load json dict
@@ -184,13 +319,20 @@ def load_json_weights_to_module(json_path: str, models: List[NeuroTrigger]) -> L
 
 
 def create_figures(path: str, models: List[NeuroTrigger], mode: int = 2):
+    """Creates and saves figures using the loaded plots classes in the pytorch lightning's visualize class.
+
+    Args:
+        path (str): Path where the figures should be saved
+        models (List[NeuroTrigger]): pytorch lightning expert modules
+        mode (int, optional): Dataset mode: 1 means train, 2 means validation and 3 means test. Defaults to 2".
+    """
     for model in models:
         outputs = []
         model.visualize.folder = os.path.join(path, model.exp_str())
         with torch.no_grad():
             d = DataLoader(model.data[mode], batch_size=10000, num_workers=0, drop_last=False)
             for i in d:
-                x, y, y_hat_old, idx = i
+                x, y, _, _ = i
                 y_hat = model(x)
                 outputs.append((y, y_hat))
 
