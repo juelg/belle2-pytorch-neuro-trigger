@@ -1,20 +1,49 @@
 # Documentation of the PyTorch NeuroTrigger Trainer
 
+<!-- vscode-markdown-toc -->
+* 1. [Introduction](#Introduction)
+* 2. [Cloning and Setup](#CloningandSetup)
+* 3. [Start a Training](#StartaTraining)
+* 4. [Debug Trainings](#DebugTrainings)
+* 5. [Tests](#Tests)
+* 6. [Log](#Log)
+	* 6.1. [Opening Tensorboard](#OpeningTensorboard)
+* 7. [Config](#Config)
+	* 7.1. [Example Configurations](#ExampleConfigurations)
+* 8. [Extensibility](#Extensibility)
+	* 8.1. [Software Architecture](#SoftwareArchitecture)
+	* 8.2. [Project Folder Structure](#ProjectFolderStructure)
+	* 8.3. [Dataset API](#DatasetAPI)
+	* 8.4. [Visualization](#Visualization)
+	* 8.5. [Filtering](#Filtering)
+	* 8.6. [Model](#Model)
+	* 8.7. [Feed-Down/Up Problem and Reweighting](#Feed-DownUpProblemandReweighting)
+		* 8.7.1. [Uniform Distribution](#UniformDistribution)
+		* 8.7.2. [Normal Distribution](#NormalDistribution)
+* 9. [Results](#Results)
 
-## Outline
+<!-- vscode-markdown-toc-config
+	numbering=true
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc -->
+
+
+<!-- ##  1. <a name='Outline'></a>Outline
 - How to use the tool, start trainings, look at tensorboard, evaluate trainings
 - how log is structured
 - config keys in detail
 - overall software architecture with class diagram
 - dataset api, how should the dataset look
 - future plans
-- how do specific bits work: weight sampler, filter, training of experts, logging/tensorboard
+- how do specific bits work: weight sampler, filter, training of experts, logging/tensorboard -->
+
+##  1. <a name='Introduction'></a>Introduction
+- idea of the trigger
+- why a rewrite was important
 
 
-## Introduction
-
-
-## Cloning and Setup
+##  2. <a name='CloningandSetup'></a>Cloning and Setup
 Note that this setup is only meant for Linux-based system. Other OSes are currently not supported.
 
 In order to clone the repository use the following command:
@@ -26,16 +55,16 @@ Then `cd` into the repository, create a python virtual environment:
 cd neuro-trigger-v2
 virtualenv venv --python=python3.8
 ```
-Activate the virtual environmnet and install the dependencies:
+Activate the virtual environment and install the dependencies:
 ```bash
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 If you later want to deactivate the virtual environment type `deactivate`.
 
-## Start a Training
-In order to start a training one first needs to define or choose a training configuration in [`neuro_trigger/configs.py`](neuro_trigger/configs.py). How to do this will be discussed in a later section.
-There are several confgurations already defined. For example `baseline_v2` which is the baseline network from BASF2.
+##  3. <a name='StartaTraining'></a>Start a Training
+In order to start a training one first needs to define or choose a training configuration in [`neuro_trigger/configs.py`](neuro_trigger/configs.py). How to do this will be discussed in section [Config](#Config).
+There are several configurations which are already defined. For example `baseline_v2` which is the baseline network from BASF2.
 To train it run the following commands inside the `neuro_trigger` folder:
 ```shell
 # activate the virtual environment if you haven't already
@@ -66,7 +95,7 @@ optional arguments:
 The main purpose of this CLI is to pass the configuration that one wants to use for the training.
 
 
-## Debug Trainings
+##  4. <a name='DebugTrainings'></a>Debug Trainings
 
 In order to launch a debug training you can just leave out the `-p` argument. Doing so will also result no description prompt:
 ```shell
@@ -89,7 +118,7 @@ They also support debugging breakpoints set in VSCode.
 The "Training" run configuration uses `normal_distribution` as pre-set config. However, this can easily be changed in [`.vscode/launch.json`](.vscode/launch.json) under `args`.
 
 
-## Tests
+##  5. <a name='Tests'></a>Tests
 
 The project also supports the execution of unit tests. The tests are defined in [`neuro_trigger_tests/test.py`](neuro_trigger_tests/test.py). Every method starting with `test_` in a class sub classing from `unittest.TestCase` will be executed.
 
@@ -106,7 +135,7 @@ in VSCode's "Run and Debug" tab. The configuration is named "Tests".
 TODO: Explain unit test framework?
 
 
-## Log
+##  6. <a name='Log'></a>Log
 
 Each training will create a log folder which one can find under the following path for production trainings:
 ```shell
@@ -134,7 +163,7 @@ Furthermore, each expert has its own log folder named `expert_x`. In this folder
 
 When the training has finished the expert specific log folder also contains a `result.json` which contains the following metrics: loss, loss_old, val_loss_vs_old_loss and val_z_diff_std. These metrics show the experts performance in a numeric way. There will also be a folder named `post_training_plots` which contains the same plots which are also pushed to tensorboard but after training in an image format.
 
-### Opening Tensorboard
+###  6.1. <a name='OpeningTensorboard'></a>Opening Tensorboard
 Tensorboard should already be installed in your virtual environment. If not install it using
 ```shell
 pip3 install tensorboard
@@ -163,12 +192,12 @@ In this example the tensorboard website can then be opened in any browser under 
 
 
 
-## Config
+##  7. <a name='Config'></a>Config
 (TODO: should also be possible to hand over a handcrafted config python dictionary)
 A training is usually configured using `configs` dictionary in the [configs.py](neuro_trigger/configs.py) file.
 A configuration is represented by an entry in the dictionary.
 The key should be a string which describes the training's configuration.
-This key can later be used in [main.py](neuro_trigger/main.py) as described in the section "Start a Training" to run a training with the specified config.
+This key can later be used in [main.py](neuro_trigger/main.py) as described in the section [Start a Training](#StartaTraining) to run a training with the specified config.
 
 Following configuration items are supported:
 * `version` (float): Version number of the training.
@@ -190,7 +219,7 @@ Following configuration items are supported:
 * `filter` (str): Filter that should be applied to the dataset. Filters are defined in [pytorch/dataset_filters.py](neuro_trigger/pytorch/dataset_filters.py). To specifiy the filters one has to use valid python code that produces objects of the classes defined in `dataset_filters.py`. Examples:
   * `dataset_filters.DuplicateEventsFilter()`
   * `dataset_filters.ConCatFilter([dataset_filters.Max2EventsFilter(), dataset_filters.DuplicateEventsFilter()])`
-* `dist` (Dict): Used for reweighted datasampling as described in Section `TODO`. It splits the z-interval into `n_buckets` and samples the training batches according to a given stocatstical distribution out of the buckets. This configuration item consists of a dictionary itself with the following items:
+* `dist` (Dict): Used for reweighted datasampling as described in Section [Feed-Down/Up Problem and Reweighting](#Feed-DownUpProblemandReweighting). It splits the z-interval into `n_buckets` and samples the training batches according to a given stocastical distribution out of the buckets. This configuration item consists of a dictionary itself with the following items:
   * `n_buckets` (int): How many buckets shall be used for the distribution.
   * `inf_bounds` (bool): Whether the distribution should continue beyond the lower most bucket to -inf and upper most bucket to inf. This has the side effect that these buckets have a slightly higher probability in the normal distribution as they should have as they include the edge probabilities. When set to False the edge which is not contained in the buckets is excluded and probabilities are normalized. Defaults to False.
   * Distribution type, supported are `norm` and `uniform`.
@@ -200,7 +229,7 @@ Following configuration items are supported:
     * `unform` is a uniform distribution. It self is again a dictionary with the following supported parameters:
       * `lower` (float): lower bound of the normal distribution
       * `upper` (float): upper bound of the normal distribution
-  * Examples can be seen in the "Examples" Section below.
+  * Examples can be seen in the section below.
 * `expert_x` (Dict): where `x` is element of {0, 1, 2, 3, 4} allows to set configuration parameters for specific experts. The parameters can be any of the ones mentioned before. If a parameter is configured twice then this value will overwrite the global value.
 * `extends` (str): Training configs have the concept inheritance, this means that once you extend a config, all parameters are inherited from that config. If parameters are configured twice the extending config will overwrite the parameters. The `extends` parameters specifies from which configuration this configuration should inherit. Inheritance is recursive which means that the configuration from which you are inheriting might also inherit from another configuration. This allows us to specify a base configuration which contains the default parameters.
 
@@ -208,7 +237,7 @@ Following configuration items are supported:
 TODO: per expert overwrite, concept of inheritance and base log
 TODO: how does random initialization work
 
-### Example Configurations
+###  7.1. <a name='ExampleConfigurations'></a>Example Configurations
 
 ```python
 configs = {
@@ -268,14 +297,14 @@ configs = {
 }
 ```
 
-## Extensability
+##  8. <a name='Extensibility'></a>Extensibility
 
-### Software Architcture
+###  8.1. <a name='SoftwareArchitecture'></a>Software Architecture
 The overall software architecture is shown as a class diagram in the following figure.
 
 ![](docs/class_diagram.svg)
 
-There are three prebuild ways to extend the architecture in an easy manner:
+There are three pre build ways to extend the architecture in an easy manner:
 - add new tensorboard plots
 - add new dataset filters
 - add new neural network models
@@ -284,7 +313,7 @@ All of these extension ways will be discussed in detail in the following section
 TODO: specific parts and general flow
 
 
-### Project Folder Structure
+###  8.2. <a name='ProjectFolderStructure'></a>Project Folder Structure
 The repository is structured in the following way:
 The folder [docs](docs) contains files relevant for this readme documentation such the UML diagram.
 [.vscode](.vscode) contains configuration files for the development in visual studio code.
@@ -292,19 +321,22 @@ The folder [docs](docs) contains files relevant for this readme documentation su
 [requirements.txt](requirements.txt) contains the python dependencies for the python code.
 [neuro_trigger](neuro_trigger) is the python module which contains the actual python code.
 It self is split into
-- the [lightning module](neuro_trigger/lightning) which contains code that uses pytorch lightning features such as the pytroch lightning module
+- the [lightning module](neuro_trigger/lightning) which contains code that uses pytorch lightning features such as the pytorch lightning module
 - the [pytorch module](neuro_trigger/pytorch) which contains pytorch relevant code such as the network models or the dataloader
 - the [test module](neuro_trigger/test) which contains tests code in order to quickly check for easy-to-find bugs
 Furthermore, the neuro_trigger also contains the [config.py](neuro_trigger/config.py) file which contains all training configs that can be used for training the neuro trigger. The [main.py](neuro_trigger/main.py) which contains the command line interface and code to start the training.
 The [utils.py](neuro_trigger/utils.py) contains helper functions and that like.
 Fiannly, the [visualize.py](neuro_trigger/visualize.py) contains code for the plots send to tensorboard.
 
+###  8.3. <a name='DatasetAPI'></a>Dataset API
+TODO?
 
-## Visualization
+
+###  8.4. <a name='Visualization'></a>Visualization
 TODO: adapt dia UML to the new schema
 The [visualize module](neuro_trigger/visualize.py) can be extended with new plots which can be displayed in tensorboard.
-In order to create a new plot the class `NTPlot` in [visualize.py](neuro_trigger/visualize.py) has to be subcallsed and the
-`create_plot` method must be overriden. It gets the following arguments:
+In order to create a new plot the class `NTPlot` in [visualize.py](neuro_trigger/visualize.py) has to be sub classed and the
+`create_plot` method must be overridden. It gets the following arguments:
 - `y` (torch.tensor): the networks output, usually z and theta (however only z if only trained on z)
 - `y_hat` (torch.tensor): ground truth, values of z and theta that we train on
 and is expected to return
@@ -325,7 +357,7 @@ class HistPlot(NTPlot):
 In order to add or remove certain plots from the training pipeline add or remove the object creation from the the `self.plots` list in the `__init__` method of the `Visualize` class at the bottom of the [visualize.py](neuro_trigger/visualize.py) file.
 
 
-## Filtering
+###  8.5. <a name='Filtering'></a>Filtering
 
 Dataset filters are a convenient way to apply filter function to the dataset and thus only train on a subset of the data which contains certain specified features..
 Dataset filters are located in [dataset_filters.py](neuro_trigger/pytroch/dataset_filters.py).
@@ -356,17 +388,17 @@ class EvenFilter(Filter):
 ```
 Note that boolean arrays can be negated using the `~` operator. E.g. `~a` inverts all entries in `a` if `a` is a boolean array.
 
-Filters can be combined using the `ConCatFilter` and the dataset length can be limited e.g. for developing using the `RangeFilter`. For details see the Config section.
+Filters can be combined using the `ConCatFilter` and the dataset length can be limited e.g. for developing using the `RangeFilter`. For details see the [Config](#Config) section.
 
 
-## Model
+###  8.6. <a name='Model'></a>Model
 - how to create new models
 
 Network models are defined in [model.py in the pytorch module](neuro_trigger/pytorch/model.py). Pytorch lightning uses normal pytorch modules. For more information on pytorch modules see the [pytorch documentation](https://pytorch.org/docs/stable/notes/modules.html).
 
 It is important that a network model for neuro trigger receives the following arguments in its `__init__` method:
 - `inp` (`int`, optional): Number of inputs (input neurons). Should default to 27.
-- `out` (`int`, optional): Number of outputs (output neurons). Setting this to one will only train on Z. Shoulde default to 2.
+- `out` (`int`, optional): Number of outputs (output neurons). Setting this to one will only train on Z. Should default to 2.
 - `act` (`Optional[nn.Module]`, optional): Activation function. Should default to `nn.Tanh`.
 
 For example the baseline model with one layer of 81 neurons, bias and Tangens hyperbolicus activation function could look like this:
@@ -390,13 +422,7 @@ class BaselineModel(nn.Module):
 Note the difference to the actual implementation with [`nn.Sequential`](https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html): these are two different ways to define networks
 
 
-
-## Feed-Down/Up Problem and Reweighting
-- explain the problem
-- explain the idea
-- pseudo code of the algorithm
-- 2 distributions tried out
-- where it is and reference to the config section
+###  8.7. <a name='Feed-DownUpProblemandReweighting'></a>Feed-Down/Up Problem and Reweighting
 
 The main problem when training with the data as given is that it is very unevenly distributed in the z domain. There are for example much more samples
 with z close to zero than in the edge regions with z close to +/-1.
@@ -411,7 +437,7 @@ In order to mange these feed-up and feed-down effects we had the idea of introdu
 
 The main idea is to split the z value range $[-1, 1]$ into $n$ evenly large buckets (referred to as `n_buckets` in the configuration).
 The bucket range is expressed with $b_i\subset[-1, 1]$ with $i\in [n]$
-We would for example get the following buckets for $n=2$: $b_1 = (-\infty, 0)$ and $b_2 = [0, \infty)$ or $b_1 = [-1, 0)$ and $b_2 = [0, 1)$ when the distribution is normalized over [-1, 1]. This can be configured in the configuration using the `inf_bounds` boolean attribute. See the configuration section for more details.
+We would for example get the following buckets for $n=2$: $b_1 = (-\infty, 0)$ and $b_2 = [0, \infty)$ or $b_1 = [-1, 0)$ and $b_2 = [0, 1)$ when the distribution is normalized over [-1, 1]. This can be configured in the configuration using the `inf_bounds` boolean attribute. See the [Config](#Config) section for more details.
 
 Each bucket contains all the samples which have z values that lie in the respective bucket.
 Now one can put an arbitrary stochastic one dimensional continuous distribution $f(x)$ (PDF) on the bucket ranges.
@@ -432,7 +458,7 @@ However, this should not be a problem as the dataset is quite large.
 
 The neural network trigger has two distributions implemented: The uniform distribution and the normal distribution.
 
-### Uniform Distribution
+####  8.7.1. <a name='UniformDistribution'></a>Uniform Distribution
 The uniform distribution can be configured with `upper` and `lower` keywords in the configuration. However, only values of -1 and 1 do really make sense here.
 Under this distribution each bucket will have the same probability of $1/n$.
 
@@ -441,9 +467,9 @@ The blue histogram is the data which resulted from random sampling with the samp
 and the red line is amount of data to which the uniform distribution converges for amount of samples towards infinity.
 ![](docs/uniform.png)
 
-### Normal Distribution
+####  8.7.2. <a name='NormalDistribution'></a>Normal Distribution
 The normal distribution can be configured with the `mean` and `std` keywords.
-The first is the center point of the distribution $\mu$ and the latter the standard deviation $\simga$.
+The first is the center point of the distribution $\mu$ and the latter the standard deviation $\sigma$.
 
 The sampling probability of bucket $i$ is given by the error function: $\text{erf}(b_{i_u}) - \text{erf}(b_{i_l})$.
 This however, comes with a small problem: How to set the edge bounds as z is only defined in the interval $[-1, 1]$.
@@ -462,7 +488,7 @@ The result of this process can be seen in the following figure:
 
 The configuration keyword `inf_bounds` specifies which of the above mentioned solutions should be used. The first is used for `inf_bounds=True` and the latter for `inf_bounds=False`.
 
-## Results
+##  9. <a name='Results'></a>Results
 
 
 
