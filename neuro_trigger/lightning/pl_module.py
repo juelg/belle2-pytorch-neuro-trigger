@@ -25,15 +25,18 @@ def init_weights(m: torch.nn.Module, act: str):
 
 class NeuroTrigger(pl.LightningModule):
 
-    def __init__(self, hparams: EasyDict, data: List[str], log_path: Optional[str] = None, expert: int = -1):
+    def __init__(self, hparams: EasyDict, data_mgrs: List[BelleIIDataManager], log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
-        # self.data_mgrs = data_mgrs
+        self.data_mgrs = data_mgrs
         self.expert = expert
         self.log_path = log_path
         self.hparams.update(self.extract_expert_hparams(hparams))
         self.model = models[self.hparams.model](
             hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
+
+        # comment in the line below if weights should be initialized to a non-default strategy
         # self.model.apply(init_weights, self.hparams.act)
+
         self.file_logger = logging.getLogger()
 
 
@@ -45,15 +48,6 @@ class NeuroTrigger(pl.LightningModule):
             self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
             raise RuntimeError()
 
-        # TODO: check why it does not work when this is put outside the thread
-        if hparams.compare_to:
-            compare_to = [os.path.join("log", hparams.compare_to, utils.PREDICTIONS_DATASET_FILENAME.format(i+1, "")) for i in range(3)]
-        else:
-            compare_to = [None, None, None]
-
-        # TODO: this should be created in main to avoid several loading into ram -> for some reason pl gets stuck if
-        # we pull data_mgrs out to the main loop
-        self.data_mgrs = [BelleIIDataManager(data[i], logger=self.file_logger, out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
         self.data = [self.get_expert_dataset(split=split) for split in range(len(self.data_mgrs))]
 
         if self.hparams.get("dist", False):

@@ -4,6 +4,7 @@ import itertools
 import json
 import threading
 from typing import List, Tuple, Union
+from neuro_trigger.pytorch.dataset import BelleIIDataManager
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from neuro_trigger import utils
@@ -70,9 +71,7 @@ def create_trainer_pl_module(expert_i: int,
                              experts: List[int],
                              log_folder: str,
                              hparams: EasyDict,
-                             data: Tuple[List[str],
-                             List[str],
-                             List[str]],
+                             data_mgrs: List[BelleIIDataManager],
                              version: int,
                              mean_tb_logger: MeanTBLogger,
                              fast_dev_run: bool = False,
@@ -88,7 +87,7 @@ def create_trainer_pl_module(expert_i: int,
         experts (List[int]): list of experts
         log_folder (str): _description_
         hparams (EasyDict): hyperparameter dict
-        data (Tuple[List[str], List[str], List[str]]): data paths
+        data_mgrs: List[BelleIIDataManager]: Data manager objects which load the data. One object for train, validation and test.
         version (int): training version
         mean_tb_logger (MeanTBLogger): tensor board logger object
         fast_dev_run (bool, optional): Whether to let pytorch lightning perform a fast dev run. Only used for debugging or in tests. Defaults to False.
@@ -117,7 +116,7 @@ def create_trainer_pl_module(expert_i: int,
     callbacks = [early_stop_callback, model_checkpoint]
 
 
-    pl_module = NeuroTrigger(hparams, data, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
+    pl_module = NeuroTrigger(hparams, data_mgrs, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
     trainer = pl.Trainer(
         logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
                     CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
@@ -250,8 +249,13 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
 
     mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
     mean_tb_logger.start_thread()
+    
 
-    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, debug=debug) for expert_i in range(len(experts))]
+    compare_to = utils.get_compare_to_path(hparams)
+
+    data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+
+    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, debug=debug) for expert_i in range(len(experts))]
 
     # config: load_pre_trained_weights with path to json weights in order to train with preinialized weights
     if hparams.get("load_pre_trained_weights"):
@@ -268,6 +272,7 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
                                  args=[trainer_module, logger])
             t.start()
             threads.append(t)
+
     # wait for all threads to finish training
     if len(experts) != 1:
         for t in threads:

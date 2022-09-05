@@ -25,19 +25,17 @@ BDType = TypeVar('BDType', bound="BelleIIDataset")
 T = TypeVar('T')
 
 
-# TODO: support for merging several files
-# TODO: should this also manage dataset versions and dataset splits -> yes splits would definatly make sense
+# TODO: should this also manage dataset versions and dataset splits -> yes splits would definitely make sense
 # TODO: add preprocessing, maybe pytorch transformers
 class BelleIIDataManager:
     _cache_dir = ".cache"
-    def __init__(self, paths: List[str], logger: logging.Logger, out_dim: int = 2, compare_to: Optional[str] = None) -> None:
+    def __init__(self, paths: List[str], out_dim: int = 2, compare_to: Optional[str] = None) -> None:
         """Manages the loaded data. Can create arbitrary datasets out of the given data with given
         filters applied.
 
 
         Args:
             paths (List[str]): List of paths to the dataset
-            logger (logging.Logger): python logger for debug output
             out_dim (int, optional): Numer of output neurons. Can either be 2 or 1.
                 If out_dim=1 than the network is trained on z. Defaults to 2.
             compare_to (Optional[str], optional): Path to a training to which one wants to compare.
@@ -47,7 +45,7 @@ class BelleIIDataManager:
         super().__init__()
         self.paths = paths
         self._cache_files = [f"{md5(path)}.pt" for path in self.paths]
-        self.logger = logger
+        self.logger = logging.getLogger()
         self.out_dim = out_dim
         self.compare_to = compare_to 
         self.data: Optional[Dict[str, torch.Tensor]] = None
@@ -361,6 +359,9 @@ class BelleIIDistDataset(BelleIIDataset):
     def get_bucket(self, z: float) -> int:
         """Returns the bucket for a given z.
         """
+        if z == 1:
+            # last bucket should include the 1.0: [x, 1.0]
+            return self.n_buckets - 1
         return math.floor((z/2 + 0.5)*self.n_buckets)
 
     def __len__(self) -> int:

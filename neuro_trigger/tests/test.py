@@ -9,17 +9,12 @@ sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 import numpy as np
 
 import torch
-from neuro_trigger import main
+from neuro_trigger import main, utils
 from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
 from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdentityFilter, Max2EventsFilter, index2mask_array
 from scipy.stats import norm, uniform
 
 from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
-
-
-# TODO
-# need a subset of training data in this folder
-# run fast dev run and overfit batches
 
 
 class End2End(unittest.TestCase):
@@ -34,7 +29,10 @@ class End2End(unittest.TestCase):
         mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
         mean_tb_logger.start_thread()
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, fast_dev_run=True) for expert_i in range(len(experts))]
+        compare_to = utils.get_compare_to_path(hparams)
+        data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+
+        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, fast_dev_run=True) for expert_i in range(len(experts))]
 
         trainers_modules[0][0].fit(trainers_modules[0][1])
 
@@ -51,7 +49,10 @@ class End2End(unittest.TestCase):
         mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
         mean_tb_logger.start_thread()
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data, version, mean_tb_logger, overfit_batches=1) for expert_i in range(len(experts))]
+        compare_to = utils.get_compare_to_path(hparams)
+        data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+
+        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, overfit_batches=1) for expert_i in range(len(experts))]
         trainers_modules[0][0].fit(trainers_modules[0][1])
 
         mean_tb_logger.stop_thread()
@@ -79,7 +80,7 @@ class FilterTest(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        self.dm = BelleIIDataManager(self.TEST_DATA)
 
     def test_index2mask_array(self):
         index_array = torch.tensor([1, 3, 8, 10])
@@ -131,7 +132,7 @@ class WeightedSamplerTest(unittest.TestCase):
     def test_distuniform(self):
         dist = uniform(loc=-1, scale=2)
         n_buckets=11
-        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        dm = BelleIIDataManager(self.TEST_DATA)
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets))
         d_unchanged = dm.dataset()
@@ -173,7 +174,7 @@ class WeightedSamplerTest(unittest.TestCase):
         dist = norm(loc=0, scale=0.6)
         n_buckets=11
         # np.random.seed(1234)
-        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        dm = BelleIIDataManager(self.TEST_DATA)
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets, inf_bounds=True))
         d_unchanged = dm.dataset()
@@ -208,7 +209,7 @@ class WeightedSamplerTest(unittest.TestCase):
         dist = norm(loc=0, scale=0.6)
         n_buckets=11
         # np.random.seed(1234)
-        dm = BelleIIDataManager(self.TEST_DATA, logging.getLogger())
+        dm = BelleIIDataManager(self.TEST_DATA)
         d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
                 dist=dist, n_buckets=n_buckets, inf_bounds=False))
         d_unchanged = dm.dataset()

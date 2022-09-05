@@ -1,10 +1,8 @@
 from collections import OrderedDict
-import copy
 import json
 import logging
-from lzma import MODE_FAST
 import os
-from typing import Iterable, List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple
 from pytorch_lightning import LightningModule
 from torch.utils.data import DataLoader
 import numpy as np
@@ -34,6 +32,13 @@ class ThreadLogFilter(logging.Filter):
 
     def filter(self, record):
         return record.threadName == self.thread_name
+
+def get_compare_to_path(hparams: Dict) -> List[Optional[str]]:
+    if hparams.compare_to:
+        return [os.path.join("log", hparams.compare_to, PREDICTIONS_DATASET_FILENAME.format(i+1, "")) for i in range(3)]
+    else:
+        return [None, None, None]
+    
 
 
 def snap_source_state(log_folder: str) -> str:
