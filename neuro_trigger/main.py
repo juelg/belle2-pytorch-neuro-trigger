@@ -313,11 +313,11 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
 def parse_args():
     parser = argparse.ArgumentParser(description='Tool to start the neuro trigger training.')
     parser.add_argument('mode', type=str,
-                        help='config mode to use, must be defined in config.py')
+                        help='Config mode to use, must be defined in config.py')
     parser.add_argument('-p', '--production',
-                        help='if not given code will run in debug mode', action='store_true')
+                        help='If not given code will run in debug mode', action='store_true')
     parser.add_argument('-s', '--solo_expert',
-                        help='Whether onebig expert for training should be used or the data should be trained via the specified amount of experts',
+                        help='Whether one expert one or several experts are used for training',
                         action='store_true')
     # if not production then logs will go to /tmp and only one expert will be used
     args = parser.parse_args()

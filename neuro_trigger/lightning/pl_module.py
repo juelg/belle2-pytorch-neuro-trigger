@@ -27,17 +27,23 @@ class NeuroTrigger(pl.LightningModule):
 
     def __init__(self, hparams: EasyDict, data_mgrs: List[BelleIIDataManager], log_path: Optional[str] = None, expert: int = -1):
         super().__init__()
-        self.data_mgrs = data_mgrs
         self.expert = expert
+        self.file_logger = logging.getLogger()
+        self.file_logger.debug(f"Start initializing expert {self.expert}")
         self.log_path = log_path
         self.hparams.update(self.extract_expert_hparams(hparams))
+        self.data_mgrs = data_mgrs
+        self.hparams.update({f"datapaths": {utils.IN2MODE[idx]: i.paths for idx, i in enumerate(self.data_mgrs)}})
         self.model = models[self.hparams.model](
             hparams.in_size, hparams.out_size, act=act_fun[self.hparams.act])
+        self.file_logger.debug("Done model init")
+
+        # to see model and crit have a look into the dict defined in __init__.py
+        self.crit = crits[self.hparams.loss]
 
         # comment in the line below if weights should be initialized to a non-default strategy
         # self.model.apply(init_weights, self.hparams.act)
 
-        self.file_logger = logging.getLogger()
 
 
         try:
@@ -48,7 +54,9 @@ class NeuroTrigger(pl.LightningModule):
             self.file_logger.error("filter parameter must be a string of a valid python object of type neuro_trigger.pytorch.dataset_filters.Filter")
             raise RuntimeError()
 
+        self.file_logger.debug("Start data init")
         self.data = [self.get_expert_dataset(split=split) for split in range(len(self.data_mgrs))]
+        self.file_logger.debug("Finish data init")
 
         if self.hparams.get("dist", False):
             # for distribution sampling: use different dataset class
@@ -58,9 +66,6 @@ class NeuroTrigger(pl.LightningModule):
                             dist=dist, n_buckets=self.hparams.dist.n_buckets, inf_bounds=self.hparams.dist.get("inf_bounds", False)))
 
 
-        # to see model and crit have a look into the dict defined in __init__.py
-        self.crit = crits[self.hparams.loss]
-        self.save_hyperparameters()
         self.visualize = Visualize(self, self.data[1])
         self.file_logger.debug(
             f"DONE init expert {self.expert} with loss '{self.hparams.loss}' and model '{self.hparams.model}'")

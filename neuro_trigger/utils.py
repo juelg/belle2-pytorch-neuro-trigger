@@ -18,6 +18,7 @@ CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iN
 """
 
 MODE2IN = {"train": 0, "val": 1, "test": 2}
+IN2MODE = ["train", "val", "test"]
 
 PREDICTIONS_DATASET_FILENAME = "prediction_random{}{}.pt"
 
