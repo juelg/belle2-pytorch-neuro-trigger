@@ -1,47 +1,38 @@
 # Changelog
 Versions are tagged in git under v0.x
 
-# Ideas for reweighting
 
-## Oversampling
-
-
-
-## Version 0.4
-- [ ] plot creation for already trained weights -> write cli where weights are loaded
-- [ ] only train on the first reco track of a track
-- [ ] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
--> problems as they are somewhat in different processes and therefore cant really communicate, solve with shared memory maybe
-- [ ] distributions into the same plot to make them more comparable
-- [x] baseline model v2 with BN and Relu
+## Version 0.5
+- [ ] able to compare not only with one specified, but also with others -> that should probably be a command line tool (after training)
+- [ ] distributions into the same plot to make them more comparable -> histograms: old vs new
 - [ ] add gradient clipping -> should be added
 - [ ] add categories in config
+- [ ] add linting
+- [ ] add bitbucket pipeline to run tests automatically
+
+## Version 0.4
+- [x] plot creation for already trained weights -> write cli where weights are loaded
+- [x] only train on the first reco track of a track
+- [x] make an average loss graph from all experts -> how to communicate with the other experts? -> easy cause we use threads -> use class where all log to and if all have logged for an epoch we can log to tensorboard and create visualizations
+-> problems as they are somewhat in different processes and therefore cant really communicate, solve with shared memory maybe
+- [x] baseline model v2 with BN and Relu
 - [x] reweighting of trainings sample, by duplicating samples per bin or by reweighting them per bin -> or random sampling with same prob. per bin, idea: make classification problem
 - [x] train with different batchsizes and learning rates per expert
-- [ ] write readme page
+- [x] write readme page
 - [x] add unit tests
-- [ ] add linting
-- [ ] add bitbucket pipeline
 - [x] create pickle file with z, theta predictions after training for future comparision
 - [x] dont use dataset predictions but optionally the ones from older trainings
-- [ ] able to compare not only with one specified, but also with others -> that should probably be a command line tool (after training)
 - [x] file with single output number -> over all experts and per expert and maybe compare to previous
 - [x] distribution sampling with in config: distribution should be configurable
 - [x] organize main better and support cmd args
 - [x] global experiment log
 - [x] filter functions
 - [x] native filter datasets
-- [ ] config as python objects
-- [ ] jupyter notebook with graphics? or with run?
+- [x] add presentation and finish readme
+- [ ] fix inhereting bug in config
+- [ ] add cli parameter which can overwrite config
 
 
-ideas from kai
-- [x] include softsign activation function
-- [ ] bigger networks that where pruned
-- [ ] more weights to z, but not really an improvement
-- [ ] classification (if displaced vertex or not)
-- [ ] cnn -> only 406 parameters and good accuracy
-- [ ] lstm -> but is there time data? -> 64 clock cycle
 
 
 ## Version 0.3

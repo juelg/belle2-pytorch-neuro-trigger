@@ -2,25 +2,26 @@
 
 <!-- vscode-markdown-toc -->
 * 1. [Introduction](#Introduction)
-* 2. [Cloning and Setup](#CloningandSetup)
-* 3. [Start a Training](#StartaTraining)
-* 4. [Debug Trainings](#DebugTrainings)
-* 5. [Tests](#Tests)
-* 6. [Log](#Log)
-	* 6.1. [Opening Tensorboard](#OpeningTensorboard)
-* 7. [Config](#Config)
-	* 7.1. [Example Configurations](#ExampleConfigurations)
-* 8. [Extensibility](#Extensibility)
-	* 8.1. [Software Architecture](#SoftwareArchitecture)
-	* 8.2. [Project Folder Structure](#ProjectFolderStructure)
-	* 8.3. [Dataset API](#DatasetAPI)
-	* 8.4. [Visualization](#Visualization)
-	* 8.5. [Filtering](#Filtering)
-	* 8.6. [Model](#Model)
-	* 8.7. [Feed-Down/Up Problem and Reweighting](#Feed-DownUpProblemandReweighting)
-		* 8.7.1. [Uniform Distribution](#UniformDistribution)
-		* 8.7.2. [Normal Distribution](#NormalDistribution)
-* 9. [Results](#Results)
+* 2. [What to Predict and How to Predict?](#WhattoPredictandHowtoPredict)
+* 3. [Cloning and Setup](#CloningandSetup)
+* 4. [Start a Training](#StartaTraining)
+* 5. [Debug Trainings](#DebugTrainings)
+* 6. [Tests](#Tests)
+* 7. [Log](#Log)
+	* 7.1. [Opening Tensorboard](#OpeningTensorboard)
+* 8. [Config](#Config)
+	* 8.1. [Example Configurations](#ExampleConfigurations)
+* 9. [Extensibility](#Extensibility)
+	* 9.1. [Software Architecture](#SoftwareArchitecture)
+	* 9.2. [Project Folder Structure](#ProjectFolderStructure)
+	* 9.3. [Dataset API](#DatasetAPI)
+	* 9.4. [Visualization](#Visualization)
+	* 9.5. [Filtering](#Filtering)
+	* 9.6. [Model](#Model)
+	* 9.7. [Feed-Down/Up Problem and Reweighting](#Feed-DownUpProblemandReweighting)
+		* 9.7.1. [Uniform Distribution](#UniformDistribution)
+		* 9.7.2. [Normal Distribution](#NormalDistribution)
+* 10. [Results](#Results)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -29,21 +30,49 @@
 <!-- /vscode-markdown-toc -->
 
 
-<!-- ##  1. <a name='Outline'></a>Outline
-- How to use the tool, start trainings, look at tensorboard, evaluate trainings
-- how log is structured
-- config keys in detail
-- overall software architecture with class diagram
-- dataset api, how should the dataset look
-- future plans
-- how do specific bits work: weight sampler, filter, training of experts, logging/tensorboard -->
 
 ##  1. <a name='Introduction'></a>Introduction
-- idea of the trigger
-- why a rewrite was important
+This repository contains the code for training a neural network trigger using PyTorch for the Belle2 experiment. The previous trigger implementation used the FANN C++ library, which has several limitations and outdated training algorithms.
+
+In order to improve the performance and efficiency of the trigger, we have rewritten the trigger using PyTorch, which offers several advantages such as:
+
+- Improved algorithms: PyTorch provides access to more advanced training and optimization algorithms, such as stochastic gradient descent and the Adam optimizer, which are not available in the FANN library.
+
+- Live graphical training supervision: PyTorch allows for live graphical supervision of the training process through Tensorboard, making it easier to track progress and identify potential issues.
+
+- Modularity and decoupling: The new implementation is modular and decoupled from BASF2, making it easier to maintain and extend.
+
+- Flexible configuration: The new implementation allows for testing different hyperparameter settings without requiring any code changes, making it easier to try out large sets of hyperparameters.
+
+- Reproducibility: This implementation provides extensive logging capabilities, making it easy to reproduce results and ensure reproducibility.
+
+This implementation significantly improves the performance and efficiency of the trigger training for the Belle2.
+
+This project started as an Interdisciplinary Project (IDP) of Tobias Jülg during his Informatics Master at Technical University of Munich. The slides of his project hand-over presentation can be viewed [here](docs/presentation.pdf).
+
+He also gave an introduction to the PyTorch (Lightning) framework which can be accesses through [this Github repository](https://github.com/juelg/pytorch-intro).
 
 
-##  2. <a name='CloningandSetup'></a>Cloning and Setup
+##  2. <a name='WhattoPredictandHowtoPredict'></a>What to Predict and How to Predict?
+The Belle2 detector has 5 axial and 4 stereo super layers, given the signal of these layers we want to predict the collision point (offset from the detector's center, also called $z$-vertex) and $\theta$ angle of the resulting particle.
+
+![Detector](docs/detector.png)
+
+Input of the neural network are the 9 layers where each layer has the following attributes
+- SLx-relID: Angle relative to 2D track $\phi$
+- SLx-driftT: Drift time
+- SLx-alpha: Crossing angle $\alpha$
+which leads to an input size of 27.
+
+The output is the collision's z-vertex and the $\theta$ angle of the resulting particle, leading to an output size of 2.
+
+The current trigger has only one hidden layer (due to restriction of the inference speed of the FPGA) of 81 neurons and uses $tanh(x/2)$ as activation function.
+
+Thus, the following graphic visualizes the current network architecture:
+![Network Architecture](docs/nn_arch.png)
+
+
+##  3. <a name='CloningandSetup'></a>Cloning and Setup
 Note that this setup is only meant for Linux-based system. Other OSes are currently not supported.
 
 In order to clone the repository use the following command:
@@ -62,7 +91,7 @@ pip install -r requirements.txt
 ```
 If you later want to deactivate the virtual environment type `deactivate`.
 
-##  3. <a name='StartaTraining'></a>Start a Training
+##  4. <a name='StartaTraining'></a>Start a Training
 In order to start a training one first needs to define or choose a training configuration in [`neuro_trigger/configs.py`](neuro_trigger/configs.py). How to do this will be discussed in section [Config](#Config).
 There are several configurations which are already defined. For example `baseline_v2` which is the baseline network from BASF2.
 To train it run the following commands inside the `neuro_trigger` folder:
@@ -95,7 +124,7 @@ optional arguments:
 The main purpose of this CLI is to pass the configuration that one wants to use for the training.
 
 
-##  4. <a name='DebugTrainings'></a>Debug Trainings
+##  5. <a name='DebugTrainings'></a>Debug Trainings
 
 In order to launch a debug training you can just leave out the `-p` argument. Doing so will also result no description prompt:
 ```shell
@@ -118,7 +147,7 @@ They also support debugging breakpoints set in VSCode.
 The "Training" run configuration uses `normal_distribution` as pre-set config. However, this can easily be changed in [`.vscode/launch.json`](.vscode/launch.json) under `args`.
 
 
-##  5. <a name='Tests'></a>Tests
+##  6. <a name='Tests'></a>Tests
 
 The project also supports the execution of unit tests. The tests are defined in [`neuro_trigger_tests/test.py`](neuro_trigger_tests/test.py). Every method starting with `test_` in a class sub classing from `unittest.TestCase` will be executed.
 
@@ -135,7 +164,7 @@ in VSCode's "Run and Debug" tab. The configuration is named "Tests".
 TODO: Explain unit test framework?
 
 
-##  6. <a name='Log'></a>Log
+##  7. <a name='Log'></a>Log
 
 Each training will create a log folder which one can find under the following path for production trainings:
 ```shell
@@ -163,7 +192,7 @@ Furthermore, each expert has its own log folder named `expert_x`. In this folder
 
 When the training has finished the expert specific log folder also contains a `result.json` which contains the following metrics: loss, loss_old, val_loss_vs_old_loss and val_z_diff_std. These metrics show the experts performance in a numeric way. There will also be a folder named `post_training_plots` which contains the same plots which are also pushed to tensorboard but after training in an image format.
 
-###  6.1. <a name='OpeningTensorboard'></a>Opening Tensorboard
+###  7.1. <a name='OpeningTensorboard'></a>Opening Tensorboard
 Tensorboard should already be installed in your virtual environment. If not install it using
 ```shell
 pip3 install tensorboard
@@ -192,7 +221,7 @@ In this example the tensorboard website can then be opened in any browser under 
 
 
 
-##  7. <a name='Config'></a>Config
+##  8. <a name='Config'></a>Config
 (TODO: should also be possible to hand over a handcrafted config python dictionary)
 A training is usually configured using `configs` dictionary in the [configs.py](neuro_trigger/configs.py) file.
 A configuration is represented by an entry in the dictionary.
@@ -237,7 +266,7 @@ Following configuration items are supported:
 TODO: per expert overwrite, concept of inheritance and base log
 TODO: how does random initialization work
 
-###  7.1. <a name='ExampleConfigurations'></a>Example Configurations
+###  8.1. <a name='ExampleConfigurations'></a>Example Configurations
 
 ```python
 configs = {
@@ -297,9 +326,9 @@ configs = {
 }
 ```
 
-##  8. <a name='Extensibility'></a>Extensibility
+##  9. <a name='Extensibility'></a>Extensibility
 
-###  8.1. <a name='SoftwareArchitecture'></a>Software Architecture
+###  9.1. <a name='SoftwareArchitecture'></a>Software Architecture
 The overall software architecture is shown as a class diagram in the following figure.
 
 ![](docs/class_diagram.svg)
@@ -313,7 +342,7 @@ All of these extension ways will be discussed in detail in the following section
 TODO: specific parts and general flow
 
 
-###  8.2. <a name='ProjectFolderStructure'></a>Project Folder Structure
+###  9.2. <a name='ProjectFolderStructure'></a>Project Folder Structure
 The repository is structured in the following way:
 The folder [docs](docs) contains files relevant for this readme documentation such the UML diagram.
 [.vscode](.vscode) contains configuration files for the development in visual studio code.
@@ -328,11 +357,11 @@ Furthermore, the neuro_trigger also contains the [config.py](neuro_trigger/confi
 The [utils.py](neuro_trigger/utils.py) contains helper functions and that like.
 Fiannly, the [visualize.py](neuro_trigger/visualize.py) contains code for the plots send to tensorboard.
 
-###  8.3. <a name='DatasetAPI'></a>Dataset API
+###  9.3. <a name='DatasetAPI'></a>Dataset API
 TODO?
 
 
-###  8.4. <a name='Visualization'></a>Visualization
+###  9.4. <a name='Visualization'></a>Visualization
 TODO: adapt dia UML to the new schema
 The [visualize module](neuro_trigger/visualize.py) can be extended with new plots which can be displayed in tensorboard.
 In order to create a new plot the class `NTPlot` in [visualize.py](neuro_trigger/visualize.py) has to be sub classed and the
@@ -357,7 +386,7 @@ class HistPlot(NTPlot):
 In order to add or remove certain plots from the training pipeline add or remove the object creation from the the `self.plots` list in the `__init__` method of the `Visualize` class at the bottom of the [visualize.py](neuro_trigger/visualize.py) file.
 
 
-###  8.5. <a name='Filtering'></a>Filtering
+###  9.5. <a name='Filtering'></a>Filtering
 
 Dataset filters are a convenient way to apply filter function to the dataset and thus only train on a subset of the data which contains certain specified features..
 Dataset filters are located in [dataset_filters.py](neuro_trigger/pytroch/dataset_filters.py).
@@ -391,7 +420,7 @@ Note that boolean arrays can be negated using the `~` operator. E.g. `~a` invert
 Filters can be combined using the `ConCatFilter` and the dataset length can be limited e.g. for developing using the `RangeFilter`. For details see the [Config](#Config) section.
 
 
-###  8.6. <a name='Model'></a>Model
+###  9.6. <a name='Model'></a>Model
 - how to create new models
 
 Network models are defined in [model.py in the pytorch module](neuro_trigger/pytorch/model.py). Pytorch lightning uses normal pytorch modules. For more information on pytorch modules see the [pytorch documentation](https://pytorch.org/docs/stable/notes/modules.html).
@@ -422,7 +451,7 @@ class BaselineModel(nn.Module):
 Note the difference to the actual implementation with [`nn.Sequential`](https://pytorch.org/docs/stable/generated/torch.nn.Sequential.html): these are two different ways to define networks
 
 
-###  8.7. <a name='Feed-DownUpProblemandReweighting'></a>Feed-Down/Up Problem and Reweighting
+###  9.7. <a name='Feed-DownUpProblemandReweighting'></a>Feed-Down/Up Problem and Reweighting
 
 The main problem when training with the data as given is that it is very unevenly distributed in the z domain. There are for example much more samples
 with z close to zero than in the edge regions with z close to +/-1.
@@ -458,7 +487,7 @@ However, this should not be a problem as the dataset is quite large.
 
 The neural network trigger has two distributions implemented: The uniform distribution and the normal distribution.
 
-####  8.7.1. <a name='UniformDistribution'></a>Uniform Distribution
+####  9.7.1. <a name='UniformDistribution'></a>Uniform Distribution
 The uniform distribution can be configured with `upper` and `lower` keywords in the configuration. However, only values of -1 and 1 do really make sense here.
 Under this distribution each bucket will have the same probability of $1/n$.
 
@@ -467,7 +496,7 @@ The blue histogram is the data which resulted from random sampling with the samp
 and the red line is amount of data to which the uniform distribution converges for amount of samples towards infinity.
 ![](docs/uniform.png)
 
-####  8.7.2. <a name='NormalDistribution'></a>Normal Distribution
+####  9.7.2. <a name='NormalDistribution'></a>Normal Distribution
 The normal distribution can be configured with the `mean` and `std` keywords.
 The first is the center point of the distribution $\mu$ and the latter the standard deviation $\sigma$.
 
@@ -488,7 +517,7 @@ The result of this process can be seen in the following figure:
 
 The configuration keyword `inf_bounds` specifies which of the above mentioned solutions should be used. The first is used for `inf_bounds=True` and the latter for `inf_bounds=False`.
 
-##  9. <a name='Results'></a>Results
+##  10. <a name='Results'></a>Results
 
 
 
