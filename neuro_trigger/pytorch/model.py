@@ -47,10 +47,9 @@ class BaselineModelBN(nn.Module):
         super().__init__()
         act = act or nn.Tanh()
         self.net = nn.Sequential(
-            nn.BatchNorm1d(inp),
             nn.Linear(inp, 81),
-            act,
             nn.BatchNorm1d(81),
+            act,
             nn.Linear(81, out),
             act,
         )

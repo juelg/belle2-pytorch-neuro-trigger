@@ -47,7 +47,7 @@ configs = {
         "workers": 20,
         "dist": {
             "n_buckets": 11,
-            "inf_bounds": False,
+            "inf_bounds": True,
             "norm": {
                     "mean": 0,
                     "std": 0.4,

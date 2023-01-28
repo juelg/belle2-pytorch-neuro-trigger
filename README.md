@@ -79,18 +79,18 @@ experiment to let you remember it easier and then it will start training with th
 
 
 `main.py` is the main entry point for each training and has a minimal CLI which supports the following arguments:
-TODO: remake
-```bash
-usage: main.py [-h] [-p] mode
+```shell
+usage: main.py [-h] [-p] [-s] mode
 
 Tool to start the neuro trigger training.
 
 positional arguments:
-  mode              config mode to use, must be defined in config.py
+  mode               Config mode to use, must be defined in config.py
 
 optional arguments:
-  -h, --help        show this help message and exit
-  -p, --production  if not given code will run in debug mode
+  -h, --help         show this help message and exit
+  -p, --production   If not given code will run in debug mode
+  -s, --solo_expert  Whether one expert one or several experts are used for training
 ```
 The main purpose of this CLI is to pass the configuration that one wants to use for the training.
 
@@ -105,7 +105,7 @@ source venv/bin/activate
 # set the python path
 export PYTHONPATH="$PYTHONPATH:."
 # execute a training
-python neuro_trigger/main.py baseline_v2
+python neuro_trigger/main.py baseline_v2 -p
 ```
 The difference compared to production trainings is that the debug training per default only uses one expert. This is useful for debugging
 as we only have a single thread where we can concentrate. The other difference is that the log folder is located under `/tmp/nt_pytorch_debug_log/<config_name>/version_x` instead of in the `log` folder.
@@ -184,10 +184,10 @@ Tensorboard will open a webserver where it will display the recorded metrics. In
 Often tensorboard will not be running on the local machine but on a remote host. In that case port forwarding (also supported in the GUI of visual studio code) can be very useful.
 For basic SSH port forwarding use the following command (forwards local port 6000 to port 6006 on the server which is tensorboard default port):
 ```shell
- ssh -L 6000:localhost:6006 user@ssh-host.de
+ ssh -L 6006:localhost:6006 user@ssh-host.de
 ```
 
-In this example the tensorboard website can then be opened in any browser under the following address: [localhost:6000](localhost:6000)
+In this example the tensorboard website can then be opened in any browser under the following address: [localhost:6006](localhost:6006)
 
 
 
@@ -370,8 +370,8 @@ This allows one to use numpy array / pytorch tensor comparison syntax.
 The following example keeps only samples where z is positive:
 ```python
 class PositiveZFilter(Filter):
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
-        z_data = data['x'][:,0]
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
+        z_data = data['y'][:,0]
         return z_data > 0
 ```
 If it is more convenient to produce an array which contains the indexes of the elements that should be kept in the filter, the
@@ -380,7 +380,7 @@ The following example filters out all odd indexes and thus halves the dataset us
 
 ```python
 class EvenFilter(Filter):
-    def fltr(self, data: torch.Tensor) -> torch.Tensor:
+    def fltr(self, data: Dict[str, torch.Tensor]) -> torch.Tensor:
         r = np.arange(len(data['x']))
         mask = r % 2 == 0
         keep_idxs = r[mask]
