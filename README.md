@@ -1,4 +1,4 @@
-# Documentation of the PyTorch NeuroTrigger Trainer
+# Documentation of the PyTorch NeuroTrigger Trainer for Belle2
 
 <!-- vscode-markdown-toc -->
 * 1. [Introduction](#Introduction)
@@ -22,6 +22,7 @@
 		* 9.7.1. [Uniform Distribution](#UniformDistribution)
 		* 9.7.2. [Normal Distribution](#NormalDistribution)
 * 10. [Results](#Results)
+* 11. [Citation](#Citation)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -46,7 +47,7 @@ In order to improve the performance and efficiency of the trigger, we have rewri
 
 - Reproducibility: This implementation provides extensive logging capabilities, making it easy to reproduce results and ensure reproducibility.
 
-This implementation significantly improves the performance and efficiency of the trigger training for the Belle2.
+This implementation significantly improves the performance and efficiency of the trigger training for the Belle2. As of 09/2022 the FPGA weights used in the neural trigger in Belle2 where trained with this repo's code.
 
 This project started as an Interdisciplinary Project (IDP) of Tobias Jülg during his Informatics Master at Technical University of Munich. The slides of his project hand-over presentation can be viewed [here](docs/presentation.pdf).
 
@@ -109,19 +110,23 @@ experiment to let you remember it easier and then it will start training with th
 
 `main.py` is the main entry point for each training and has a minimal CLI which supports the following arguments:
 ```shell
-usage: main.py [-h] [-p] [-s] mode
+usage: main.py [-h] [-p] [-s] [-d DESCRIPTION] [-m HPARAMS [HPARAMS ...]] mode
 
 Tool to start the neuro trigger training.
 
 positional arguments:
-  mode               Config mode to use, must be defined in config.py
+  mode                  Config mode to use, must be defined in config.py
 
 optional arguments:
-  -h, --help         show this help message and exit
-  -p, --production   If not given code will run in debug mode
-  -s, --solo_expert  Whether one expert one or several experts are used for training
+  -h, --help            show this help message and exit
+  -p, --production      If not given code will run in debug mode
+  -s, --solo_expert     Whether one expert or several experts are used for training. One expert is good for debugging as there is not multi processing
+  -d DESCRIPTION, --description DESCRIPTION
+                        Run description
+  -m HPARAMS [HPARAMS ...], --hparams HPARAMS [HPARAMS ...]
+                        Overwrite config parameters, e.g. -p expert_2.bach_size=16 act=softsign
 ```
-The main purpose of this CLI is to pass the configuration that one wants to use for the training.
+The main purpose of this CLI is to pass the configuration that one wants to use for the training. However, it can also be used to debug trainings, as well as setting experiment descriptions and overwrite hyperparameters.
 
 
 ##  5. <a name='DebugTrainings'></a>Debug Trainings
@@ -518,6 +523,18 @@ The result of this process can be seen in the following figure:
 The configuration keyword `inf_bounds` specifies which of the above mentioned solutions should be used. The first is used for `inf_bounds=True` and the latter for `inf_bounds=False`.
 
 ##  10. <a name='Results'></a>Results
+Results can be viewed in the [hand-over presentation](docs/presentation.pdf).
 
+##  11. <a name='Citation'></a>Citation
+```
+@misc{Juelg_et_al_2023,
+  author = {Jülg, Tobias and Meggendorfer, Felix and Kiesling, Christian},
+  title = {PyTorch Neuro Trigger Trainer for Belle2},
+  year = {2023},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/juelg/pytorch-neuro-trigger}}
+}
+```
 
 

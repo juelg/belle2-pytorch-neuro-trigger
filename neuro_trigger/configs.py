@@ -1,6 +1,7 @@
-from typing import Dict
+from typing import Any, Dict, Optional
 from easydict import EasyDict
 import copy
+from flatten_dict import flatten, unflatten
 
 configs = {
 
@@ -57,9 +58,9 @@ configs = {
 
     "reweight_normal_11_04_no_inf_bounds": {
         "extends": "baseline_v2",
-        "compare_to": "baseline_v2/version_4",
+        # "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with normal distribution dataloader with 11 buckets and std=0.4, no infinite bounds -> reweighting",
-        "workers": 20,
+        # "workers": 20,
         "dist": {
             "n_buckets": 11,
             "inf_bounds": False,
@@ -72,15 +73,44 @@ configs = {
 
 
     "baseline_v4_softsign": {
-        # improving: 
+        # improving: no, worse than tanh
         "extends": "baseline_v3",
         # should be similar to "baseline_v2/version_4"
         "compare_to": "baseline_v4/version_0",
         "description": "Baseline arch with v3 (softsign) and batchnorm before the layers",
         "model": "BaselineModelBN",
     },
-    "baseline_v4_tanh": {
+    # idea: add more data, maybe train on random split 1 and 2 and eval on 3
+    "baseline_v4_tanh_per_expert": {
         # improving: 
+        "extends": "baseline_v4_tanh",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v4_tanh/version_0",
+        "description": "Baseline arch with v1 (tanh) and batchnorm before the layers, different batch sizes and epochs",
+        "model": "BaselineModelBN",
+        "expert_0": {
+            "batch_size": 2048,
+            "epochs": 1000,
+        },
+        "expert_1": {
+            "batch_size": 2048,
+            "epochs": 1000,
+        },
+        "expert_2": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+        "expert_3": {
+            "batch_size": 128,
+            "epochs": 2000,
+        },
+        "expert_4": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+    },
+    "baseline_v4_tanh": {
+        # improving: yes but only little and not for all experts
         "extends": "baseline_v1",
         # should be similar to "baseline_v2/version_4"
         "compare_to": "baseline_v4/version_0",
@@ -94,6 +124,15 @@ configs = {
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline arch with v2 (tanh/2) and batchnorm before the layers",
         "model": "BaselineModelBN",
+    },
+    "baseline_v2_norm_dist": {
+        # imporving: no, it is even worse
+        "extends": "baseline_v1",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline_v2 (tanh/2) with new dits dataloader",
+        "act": "tanh",
+        "dist": "norm",
     },
     "baseline_v1_comp_v2": {
         # imporving: yes -> tanh better than tanh/2
@@ -111,6 +150,33 @@ configs = {
         "description": "Baseline arch with SGD optimizer",
         "optim": "SGD",
     },
+    "baseline_v3_per_expert": {
+        # improving: yes upon baseline v2
+        "extends": "baseline_v3",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v3/version_1",
+        "description": "Baseline arch with softsign activation function and per expert batchsizes and epochs",
+        "expert_0": {
+            "batch_size": 1024,
+            "epochs": 1000,
+        },
+        "expert_1": {
+            "batch_size": 1024,
+            "epochs": 1000,
+        },
+        "expert_2": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+        "expert_3": {
+            "batch_size": 128,
+            "epochs": 2000,
+        },
+        "expert_4": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+    },
     "baseline_v3.1": {
         # improving: yes upon baseline v2
         "extends": "baseline_v3",
@@ -125,6 +191,62 @@ configs = {
         # should be similar to "baseline_v2/version_4"
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline arch with softsign activation function",
+        "act": "softsign",
+    },
+    # idea: add more data, maybe train on random split 1 and 2 and eval on 3
+    "baseline_v2_tanh_per_expert": {
+        # improving: yes all but expert 1
+        "extends": "baseline_v2",
+        # should be similar to "baseline_v2/version_4"
+        "compare_to": "baseline_v2/version_4",
+        "description": "Baseline arch with v2 (tanh/2), different batch sizes and epochs",
+        "expert_0": {
+            "batch_size": 2048,
+            "epochs": 1000,
+        },
+        "expert_1": {
+            "batch_size": 2048,
+            "epochs": 1000,
+        },
+        "expert_2": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+        "expert_3": {
+            "batch_size": 128,
+            "epochs": 2000,
+        },
+        "expert_4": {
+            "batch_size": 16,
+            "epochs": 4000,
+        },
+    },
+    "baseline_v2_batchnorm": {
+        "extends": "baseline_v1",
+        "description": "Baseline with BN arch with tanh/2",
+        "act": "tanh/2",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v2_batchnorm_tanh": {
+        "extends": "baseline_v1",
+        "description": "Baseline arch with BN with tanh",
+        "act": "tanh",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v2_batchnorm_relu": {
+        "extends": "baseline_v1",
+        "description": "Baseline with BN arch with relu act",
+        "act": "relu",
+        "model": "BaselineModelBN",
+    },
+    "baseline_v2_tanh": {
+        "extends": "baseline_v1",
+        "description": "Baseline arch with tanh",
+        "act": "tanh",
+    },
+    "baseline_v2_softsign": {
+        "extends": "baseline_v1",
+        "description": "Baseline arch with softsign act",
         "act": "softsign",
     },
     "baseline_v2": {
@@ -203,17 +325,25 @@ configs = {
 }
 
 
-def extend(use_dict: Dict) -> Dict:
+def extend(use_dict: Dict, flattened_configs: Dict) -> Dict:
     if use_dict.get("extends"):
         name = use_dict.get("extends")
-        extended = extend(configs.get(name, {}))
+        extended = extend(flattened_configs.get(name, {}), flattened_configs)
         extended.update(use_dict)
         return extended
     else:
         return copy.deepcopy(use_dict)
 
 
-def get_hyperpar_by_name(name: str) -> EasyDict:
-    hparams = configs[name]
+def get_hyperpar_by_name(name: str, overwrite_hparams: Optional[Dict[str, Any]] = None) -> EasyDict:
+    overwrite_hparams = overwrite_hparams or {}
+    flattened_configs = {
+        key: flatten(value, reducer="dot") for key, value in configs.items()
+    }
+
+    hparams = flattened_configs[name]
     hparams["config"] = name
-    return EasyDict(extend(hparams))
+    extened_hparams = extend(hparams, flattened_configs)
+    extened_hparams.update(overwrite_hparams)
+    return EasyDict(unflatten(extened_hparams, splitter="dot"))
+

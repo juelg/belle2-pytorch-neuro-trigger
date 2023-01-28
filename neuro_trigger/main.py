@@ -3,7 +3,7 @@ from datetime import datetime
 import itertools
 import json
 import threading
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from neuro_trigger.pytorch.dataset import BelleIIDataManager
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -22,14 +22,7 @@ from easydict import EasyDict
 from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, load_json_weights_to_module, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
 
 
-# train = "/home/tobi/neurotrigger/train1"
-# val = "/home/tobi/neurotrigger/valid1"
-# test = "/home/tobi/neurotrigger/test1"
-
-# train = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz"
-# val = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz"
-# test = "/remote/neurobelle/data/dqmNeuro/dqmNeuro_mpp34_exp20_430-459/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz"
-
+# Data needs to be mounted to the data folder, e.g. with sshfs:
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
 
 train = ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"]
@@ -129,7 +122,7 @@ def create_trainer_pl_module(expert_i: int,
         callbacks=callbacks,
         max_epochs=hparams["epochs"],
         deterministic=True,
-        # log_every_n_steps=1,
+        log_every_n_steps=30,
         profiler="simple" if debug else None,
         fast_dev_run=fast_dev_run,
         overfit_batches=overfit_batches,
@@ -152,7 +145,7 @@ def write_global_journal(base_log: str, config: str, journal_name: str = "log.tx
     with open(os.path.join(base_log, journal_name), "a") as f:
         f.write(f"{datetime.now()}: {config}\n")
 
-def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
+def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False, overwrite_hparams: Optional[Dict[str, Any]] = None) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
     """Creates logging folder, initializes logger per expert and writes the run to a global training log file
 
     Args:
@@ -165,9 +158,9 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) ->
             List of expert numbers, experiment version (used in the log folder), List of expert names e.g. `expert_0`, python logger to log debug messages to
     """
     base_log = "/tmp/nt_pytorch_debug_log" if debug else "log"
-    hparams = get_hyperpar_by_name(config)
+    hparams = get_hyperpar_by_name(config, overwrite_hparams)
     if debug:
-        hparams["epochs"] = 2
+        hparams["epochs"] = 10
     experts = hparams.experts if not solo_expert else [-1] #[0, 1, 2, 3, 4]
 
     experts_str = [f"expert_{i}" for i in experts]
@@ -223,7 +216,8 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False) ->
     return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool = False, solo_expert: bool = False) -> str:
+def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool = False, solo_expert: bool = False,
+         run_description: Optional[str] = None, overwrite_hparams: Optional[Dict[str, Any]] = None) -> str:
     """Wirtes commit id and diff, runs training and creates output dataset
 
     Args:
@@ -235,14 +229,17 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
     Returns:
         str: Log folder path
     """
-    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert)
+    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert, overwrite_hparams)
 
     # save git commit and git diff in file
     hparams["git_id"] = snap_source_state(log_folder)
 
-    if not debug:
+    if not debug and run_description is None:
         # force a short experiment description
         hparams["run_description"] = input("Experiment run description: ")
+    else:
+        hparams["run_description"] = run_description
+        
 
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(hparams, f, indent=2, sort_keys=True)
@@ -314,19 +311,33 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Tool to start the neuro trigger training.')
     parser.add_argument('mode', type=str,
                         help='Config mode to use, must be defined in config.py')
+    # if not production then logs will go to /tmp and only one expert will be used
     parser.add_argument('-p', '--production',
                         help='If not given code will run in debug mode', action='store_true')
     parser.add_argument('-s', '--solo_expert',
-                        help='Whether one expert one or several experts are used for training',
+                        help='Whether one expert or several experts are used for training. One expert is good for debugging as there is not multi processing',
                         action='store_true')
-    # if not production then logs will go to /tmp and only one expert will be used
+    parser.add_argument(
+        "-d",
+        "--description",
+        help="Run description",
+        default=None,
+    )
+    parser.add_argument(
+        "-m",
+        "--hparams",
+        nargs='+',
+        help="Overwrite config parameters, e.g. -p expert_2.bach_size=16 act=softsign",
+        default=[]
+    )
     args = parser.parse_args()
+    args.hparams = {i.split("=")[0]: eval(i.split("=")[1]) for i in args.hparams}
     return args
 
 
 if __name__ == "__main__":
     args = parse_args()
     debug = not args.production
-    print(debug)
-    # main(config = "baseline_v4_softsign", data=DATA_DEBUG if debug else DATA_PROD, debug=debug)
-    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=args.solo_expert)
+    if debug:
+        logging.info("Running in debug mode.")
+    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=args.solo_expert, run_description=args.description, overwrite_hparams=args.m__hparams)

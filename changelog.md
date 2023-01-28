@@ -29,8 +29,8 @@ Versions are tagged in git under v0.x
 - [x] filter functions
 - [x] native filter datasets
 - [x] add presentation and finish readme
-- [ ] fix inhereting bug in config
-- [ ] add cli parameter which can overwrite config
+- [x] fix inhereting bug in config
+- [x] add cli parameter which can overwrite config
 
 
 
