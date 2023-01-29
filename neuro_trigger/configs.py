@@ -326,6 +326,15 @@ configs = {
 
 
 def extend(use_dict: Dict, flattened_configs: Dict) -> Dict:
+    """Extend a config with its parent config recursively.
+
+    Args:
+        use_dict (Dict): Config dict to extend.
+        flattened_configs (Dict): Parent config dict which should be used to extend the config.
+
+    Returns:
+        Dict: Extended config dict.
+    """
     if use_dict.get("extends"):
         name = use_dict.get("extends")
         extended = extend(flattened_configs.get(name, {}), flattened_configs)
@@ -336,6 +345,19 @@ def extend(use_dict: Dict, flattened_configs: Dict) -> Dict:
 
 
 def get_hyperpar_by_name(name: str, overwrite_hparams: Optional[Dict[str, Any]] = None) -> EasyDict:
+    """Get hyperparameter config by name.
+
+    Gets the config with the given name, extends it with its parent config
+    recursively and overwrites the given overwrite_hparams.
+
+    Args:
+        name (str): Config name to use.
+        overwrite_hparams (Optional[Dict[str, Any]], optional): Flat parameter dict to overwrite
+            the config with. Defaults to None.
+
+    Returns:
+        EasyDict: Extended and overwritten config dict accessible via dot notation.
+    """
     overwrite_hparams = overwrite_hparams or {}
     flattened_configs = {
         key: flatten(value, reducer="dot") for key, value in configs.items()

@@ -152,6 +152,8 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False, ov
         config (str): key of the config to use defined in `configs.py`
         debug (bool, optional): Whether debug mode is enable. If True the training will log to a folder in `/tmp`. Defaults to False.
         solo_expert (bool, optional): Whether to only train on a single expert with all data. Defaults to False.
+        overwrite_hparams (Optional[Dict[str, Any]]): Overwrite hyperparameters of the current used config.
+            Use dotted syntax to access nested parameters. Defaults to None.
 
     Returns:
         Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]: Hyperparameters dict, folder to log to,
@@ -225,6 +227,9 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
         data (Tuple[List[str], List[str], List[str]]): datasets as train, validation and test datasets
         debug (bool, optional): _description_. Defaults to False.
         solo_expert (bool, optional): Whether to only train on a single expert with all data. Defaults to False.
+        run_description (Optional[str]): Experiment description. Defaults to None.
+        overwrite_hparams (Optional[Dict[str, Any]]): Overwrite hyperparameters of the current used config.
+            Use dotted syntax to access nested parameters. Defaults to None.
 
     Returns:
         str: Log folder path

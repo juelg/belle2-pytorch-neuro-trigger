@@ -88,20 +88,6 @@ class MeanTBLogger(Thread):
         self.queue.put("stop")
         self.join()
 
-    def check_log(self, metric: str, step: int, amount_log_entries: int):
-        """Checks whether all other experts have already logged the same metric for the same step.
-        If yes then the metric's average will be pushed to tensorboard
-
-        Args:
-            metric (str): metric name
-            step (int): step count
-            amount_log_entries (int): how many metrics should exists
-        """
-        lens = [len(self.log_data[expert][metric]) for expert in self.log_data]
-        if all([l>=amount_log_entries for l in lens]):
-            self.logger.log_metrics({metric: np.mean([self.log_data[expert][metric][amount_log_entries-1] 
-                                                        for expert in self.log_data])}, step)
-
     def log(self, expert: int, metric: str, step: int, value: float):
         """Logs to the mean tensorboard metric graph
 
@@ -116,7 +102,22 @@ class MeanTBLogger(Thread):
                 self.log_data[exp][metric] = []
         self.log_data[expert][metric].append(value)
 
-        self.check_log(metric, step, len(self.log_data[expert][metric]))
+        vals = self.get_ith_metric_value(metric, step)
+        self.logger.log_metrics({metric: np.mean(vals)}, step)
+
+
+    def get_ith_metric_value(self, metric: str, step) -> np.ndarray:
+        step = int(step)
+        vals = []
+        for expert in self.log_data:
+            if len(self.log_data[expert][metric]) > step:
+                vals.append(self.log_data[expert][metric][step])
+
+            elif len(self.log_data[expert][metric]) != 0:
+                vals.append(self.log_data[expert][metric][-1])
+
+        return np.array(vals)
+
 
     def run(self):
         while self.running:

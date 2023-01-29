@@ -533,7 +533,7 @@ Results can be viewed in the [hand-over presentation](docs/presentation.pdf).
   year = {2023},
   publisher = {GitHub},
   journal = {GitHub repository},
-  howpublished = {\url{https://github.com/juelg/pytorch-neuro-trigger}}
+  howpublished = {\url{https://github.com/juelg/belle2-pytorch-neuro-trigger}}
 }
 ```
 

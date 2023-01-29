@@ -71,6 +71,7 @@ class ZPlot(NTPlot):
         ax.legend()
 
         cbar = fig.colorbar(h[3], ax=ax)
+        # TODO: Fixme, for some reason this latex formula makes problems
         cbar.set_label(r'$\log_{10}$ density of points')
 
         ax.set(xlabel="reco Track z", ylabel="nnhw Track z",
