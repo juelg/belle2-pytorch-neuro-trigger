@@ -22,7 +22,8 @@
 		* 9.7.1. [Uniform Distribution](#UniformDistribution)
 		* 9.7.2. [Normal Distribution](#NormalDistribution)
 * 10. [Results](#Results)
-* 11. [Citation](#Citation)
+* 11. [License](#License)
+* 12. [Citation](#Citation)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -525,7 +526,25 @@ The configuration keyword `inf_bounds` specifies which of the above mentioned so
 ##  10. <a name='Results'></a>Results
 Results can be viewed in the [hand-over presentation](docs/presentation.pdf).
 
-##  11. <a name='Citation'></a>Citation
+##  11. <a name='License'></a>License
+Copyright (c) 2021-2023 Tobias Juelg
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+See [LICENSE](LICENSE) for more details.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+##  12. <a name='Citation'></a>Citation
 ```
 @misc{Juelg_et_al_2023,
   author = {Jülg, Tobias and Meggendorfer, Felix and Kiesling, Christian},
