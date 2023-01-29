@@ -1,17 +1,16 @@
-from collections import OrderedDict
 import json
 import logging
 import os
-from typing import List, Dict, Optional, Tuple
+from collections import OrderedDict
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import torch
 from pytorch_lightning import LightningModule
 from torch.utils.data import DataLoader
-import numpy as np
-
-import torch
 
 from neuro_trigger.lightning.pl_module import NeuroTrigger
 from neuro_trigger.pytorch.dataset_filters import Filter
-
 
 CSV_HEAD = """Experiment      Run     Subrun  Event   Track   nTracks Expert  iNodes  oNodes  SL0-relID       SL0-driftT      SL0-alpha       SL1-relID       SL1-driftT      SL1-alpha       SL2-relID       SL2-driftT      SL2-alpha       SL3-relID       SL3-driftT      SL3-alpha       SL4-relID       SL4-driftT      SL4-alpha       SL5-relID       SL5-driftT      SL5-alpha       SL6-relID       SL6-driftT      SL6-alpha       SL7-relID       SL7-driftT      SL7-alpha       SL8-relID       SL8-driftT      SL8-alpha       RecoZ   RecoTheta       ScaleZ  RawZ    ScaleTheta      RawTheta        NewZ    NewTheta
 

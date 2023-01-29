@@ -1,25 +1,32 @@
+import copy
 import functools
 import json
+import logging
 import os
-from typing import Dict, Optional, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import pytorch_lightning as pl
 import torch
+from easydict import EasyDict
 from torch import optim
+from torch.utils.data import DataLoader
+
+from neuro_trigger import (
+    act_fun,
+    crits,
+    get_dist_func,
+    models,
+    supported_optimizers,
+    utils,
+)
 from neuro_trigger.pytorch import dataset_filters
 from neuro_trigger.pytorch.dataset import (
     BelleIIDataManager,
     BelleIIDataset,
     BelleIIDistDataset,
 )
-from torch.utils.data import DataLoader
-from neuro_trigger import utils
-from neuro_trigger import supported_optimizers
 from neuro_trigger.visualize import Visualize
-import logging
-from easydict import EasyDict
-import copy
-from neuro_trigger import crits, models, act_fun, get_dist_func
-import numpy as np
 
 
 def init_weights(m: torch.nn.Module, act: str):

@@ -1,15 +1,17 @@
-from functools import partial
 import os
-import unittest
 import sys
+import unittest
+from functools import partial
 
 from neuro_trigger.lightning.mean_tb_logger import MeanTBLogger
 
 sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 import numpy as np
-
 import torch
+from scipy.stats import norm, uniform
+
 from neuro_trigger import main, utils
+from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
 from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
 from neuro_trigger.pytorch.dataset_filters import (
     ConCatFilter,
@@ -18,9 +20,6 @@ from neuro_trigger.pytorch.dataset_filters import (
     Max2EventsFilter,
     index2mask_array,
 )
-from scipy.stats import norm, uniform
-
-from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
 
 
 class End2End(unittest.TestCase):

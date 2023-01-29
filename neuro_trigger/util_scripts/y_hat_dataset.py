@@ -1,8 +1,10 @@
 # %%
 import os
-from neuro_trigger.lightning.pl_module import NeuroTrigger
+
 import torch
 from torch.utils.data import DataLoader
+
+from neuro_trigger.lightning.pl_module import NeuroTrigger
 
 conf = "baseline_v1"
 experts = [f"expert_{i}" for i in range(5)]

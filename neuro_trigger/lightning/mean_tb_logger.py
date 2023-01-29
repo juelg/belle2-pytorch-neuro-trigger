@@ -1,13 +1,11 @@
-from typing import List
-from pytorch_lightning.loggers import TensorBoardLogger
-import numpy as np
 from multiprocessing import Queue
 from threading import Thread
+from typing import List
 
-
-from pytorch_lightning.utilities import rank_zero_only
-from pytorch_lightning.loggers import LightningLoggerBase
+import numpy as np
+from pytorch_lightning.loggers import LightningLoggerBase, TensorBoardLogger
 from pytorch_lightning.loggers.base import rank_zero_experiment
+from pytorch_lightning.utilities import rank_zero_only
 
 
 class MeanLoggerExp(LightningLoggerBase):

@@ -1,9 +1,10 @@
 # Version to check with the config, only when versions match can we proceed
 __version__ = 0.4
 import torch
-import neuro_trigger.pytorch.model as model
-from scipy.stats import norm, uniform
 from easydict import EasyDict
+from scipy.stats import norm, uniform
+
+import neuro_trigger.pytorch.model as model
 
 
 class LambdaModule(torch.nn.Module):

@@ -1,9 +1,10 @@
 # %%
 # Utility script that exports weights from trained net checkpoints to a json file
-from typing import OrderedDict
-import os
-import torch
 import json
+import os
+from typing import OrderedDict
+
+import torch
 
 
 def create_json_for_conf(conf, version=0):

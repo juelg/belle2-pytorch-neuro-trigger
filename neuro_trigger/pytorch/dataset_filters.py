@@ -1,7 +1,7 @@
-from typing import Dict, Iterable, List
 from abc import ABC, abstractmethod
-import numpy as np
+from typing import Dict, Iterable, List
 
+import numpy as np
 import torch
 
 

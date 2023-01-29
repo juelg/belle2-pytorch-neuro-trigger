@@ -1,35 +1,31 @@
 import argparse
-from datetime import datetime
 import itertools
 import json
+import logging
+import os
 import threading
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
-from neuro_trigger.pytorch.dataset import BelleIIDataManager
+
 import pytorch_lightning as pl
+import torch
+from easydict import EasyDict
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
+
 from neuro_trigger import utils
+from neuro_trigger.configs import get_hyperpar_by_name
 from neuro_trigger.lightning.mean_tb_logger import MeanLoggerExp, MeanTBLogger
 from neuro_trigger.lightning.pl_module import NeuroTrigger
-import os
-from neuro_trigger.configs import get_hyperpar_by_name
-from pathlib import Path
-import logging
-from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
-import torch
+from neuro_trigger.pytorch.dataset import BelleIIDataManager
 from neuro_trigger.pytorch.dataset_filters import IdentityFilter
-from easydict import EasyDict
-
-from neuro_trigger.utils import (
-    ThreadLogFilter,
-    create_dataset_with_predictions_per_expert,
-    expert_weights_json,
-    get_loss,
-    load_json_weights_to_module,
-    save_csv_dataset_with_predictions,
-    save_predictions_pickle,
-    snap_source_state,
-)
-
+from neuro_trigger.utils import (ThreadLogFilter,
+                                 create_dataset_with_predictions_per_expert,
+                                 expert_weights_json, get_loss,
+                                 load_json_weights_to_module,
+                                 save_csv_dataset_with_predictions,
+                                 save_predictions_pickle, snap_source_state)
 
 # Data needs to be mounted to the data folder, e.g. with sshfs:
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data

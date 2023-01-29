@@ -1,23 +1,23 @@
-from abc import ABC, abstractmethod
+import io
 import os
+from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional, Tuple
-from matplotlib.figure import Figure
+
 import matplotlib.pyplot as plt
 import numpy as np
-from torch.utils.data import DataLoader
-from matplotlib.colors import LogNorm
-import io
-from torchvision.transforms import ToTensor
 import PIL
-import torch
-from pytorch_lightning.loggers import TensorBoardLogger
-import scipy.stats
-from torch.utils.data import Dataset
 import pytorch_lightning as pl
+import scipy.stats
+import torch
+from matplotlib.colors import LogNorm
+from matplotlib.figure import Figure
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers.base import DummyLogger
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import ToTensor
 
 from neuro_trigger.pytorch.dataset import BelleIIDataset
-from pathlib import Path
-from pytorch_lightning.loggers.base import DummyLogger
 
 
 class NTPlot(ABC):

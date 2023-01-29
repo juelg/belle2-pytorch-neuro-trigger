@@ -1,9 +1,11 @@
 # %%
+import json
 import os
-from neuro_trigger.lightning.pl_module import NeuroTrigger
+
 import torch
 from torch.utils.data import DataLoader
-import json
+
+from neuro_trigger.lightning.pl_module import NeuroTrigger
 
 # j_path = "json_weights/tobias1_10.json"
 j_path = "json_weights/felix10_10.json"

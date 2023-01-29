@@ -1,7 +1,8 @@
+import gzip
 import json
 from typing import Dict, Tuple
+
 import numpy as np
-import gzip
 
 
 def load_dataset(path: str) -> Tuple[np.array]:

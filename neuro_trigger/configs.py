@@ -1,6 +1,7 @@
-from typing import Any, Dict, Optional
-from easydict import EasyDict
 import copy
+from typing import Any, Dict, Optional
+
+from easydict import EasyDict
 from flatten_dict import flatten, unflatten
 
 configs = {

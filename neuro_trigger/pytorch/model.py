@@ -1,6 +1,7 @@
 from typing import Optional
-from torch import nn
+
 import torch
+from torch import nn
 
 
 def pad(f: int) -> int:
