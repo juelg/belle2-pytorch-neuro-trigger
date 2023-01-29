@@ -14,13 +14,19 @@ class MeanLoggerExp(LightningLoggerBase):
     """Lighting logger for each expert that is just an interface between lighting and
     MeanTBLogger. Thus, all logs are just forwarded to the MeanTBLogger object.
     """
-    def __init__(self, queue: Queue, version: int, mean_tb_logger: 'MeanTBLogger', expert: int = -1):
+
+    def __init__(
+        self,
+        queue: Queue,
+        version: int,
+        mean_tb_logger: "MeanTBLogger",
+        expert: int = -1,
+    ):
         super().__init__()
         self.expert = expert
         self._version = version
         self.mean_tb_logger = mean_tb_logger
         self.queue = queue
-
 
     @property
     def name(self):
@@ -69,6 +75,7 @@ class MeanTBLogger(Thread):
 
     Gathers metrics from all experts, waits until all are there then logs the mean over all experts.
     """
+
     def __init__(self, path: str, experts: List[int], name: str = ""):
         Thread.__init__(self)
         self.logger = TensorBoardLogger(path, name=name)
@@ -81,7 +88,7 @@ class MeanTBLogger(Thread):
         """Starts the logging thread"""
         self.running = True
         self.start()
-    
+
     def stop_thread(self):
         """Stops the logging thread by sending a stop signal"""
         self.running = False
@@ -105,7 +112,6 @@ class MeanTBLogger(Thread):
         vals = self.get_ith_metric_value(metric, step)
         self.logger.log_metrics({metric: np.mean(vals)}, step)
 
-
     def get_ith_metric_value(self, metric: str, step) -> np.ndarray:
         step = int(step)
         vals = []
@@ -118,7 +124,6 @@ class MeanTBLogger(Thread):
 
         return np.array(vals)
 
-
     def run(self):
         while self.running:
             data = self.queue.get(block=True)
@@ -126,4 +131,3 @@ class MeanTBLogger(Thread):
                 return
             expert, metric, step, value = data
             self.log(expert, metric, step, value)
-

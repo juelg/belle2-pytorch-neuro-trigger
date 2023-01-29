@@ -15,7 +15,7 @@ def pad(f: int) -> int:
 
 
 class BaselineModel(nn.Module):
-    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module]=None):
+    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module] = None):
         """Recreation of the model developed in BASF2
 
         Args:
@@ -35,8 +35,9 @@ class BaselineModel(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
+
 class BaselineModelBN(nn.Module):
-    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module]=None):
+    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module] = None):
         """Baseline model from BASF extended with batchnorm to stabalize the training
 
         Args:
@@ -59,7 +60,7 @@ class BaselineModelBN(nn.Module):
 
 
 class SimpleModel(nn.Module):
-    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module]=None):
+    def __init__(self, inp: int = 27, out: int = 2, act: Optional[nn.Module] = None):
         """Model with 5 layers with batchnorm in between.
 
         Args:
@@ -82,7 +83,7 @@ class SimpleModel(nn.Module):
             nn.Linear(50, 10),
             nn.BatchNorm1d(10),
             act,
-            nn.Linear(10, out)
+            nn.Linear(10, out),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

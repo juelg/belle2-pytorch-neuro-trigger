@@ -4,13 +4,20 @@ import unittest
 import sys
 
 from neuro_trigger.lightning.mean_tb_logger import MeanTBLogger
+
 sys.path.append("/mnt/scratch/juelg/neuro-trigger-v2")
 import numpy as np
 
 import torch
 from neuro_trigger import main, utils
 from neuro_trigger.pytorch.dataset import BelleIIDataManager, BelleIIDistDataset
-from neuro_trigger.pytorch.dataset_filters import ConCatFilter, DuplicateEventsFilter, IdentityFilter, Max2EventsFilter, index2mask_array
+from neuro_trigger.pytorch.dataset_filters import (
+    ConCatFilter,
+    DuplicateEventsFilter,
+    IdentityFilter,
+    Max2EventsFilter,
+    index2mask_array,
+)
 from scipy.stats import norm, uniform
 
 from neuro_trigger.main import DATA_DEBUG, create_trainer_pl_module, prepare_vars
@@ -23,44 +30,81 @@ class End2End(unittest.TestCase):
         used_config = "base"
         data = (self.TEST_DATA, self.TEST_DATA, self.TEST_DATA)
 
-        hparams, log_folder, experts, version, experts_str, logger = prepare_vars(used_config, debug=True)
+        hparams, log_folder, experts, version, experts_str, logger = prepare_vars(
+            used_config, debug=True
+        )
 
         mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
         mean_tb_logger.start_thread()
 
         compare_to = utils.get_compare_to_path(hparams)
-        data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+        data_mgrs = [
+            BelleIIDataManager(
+                data[i], out_dim=hparams.out_size, compare_to=compare_to[i]
+            )
+            for i in range(3)
+        ]
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, fast_dev_run=True) for expert_i in range(len(experts))]
+        trainers_modules = [
+            create_trainer_pl_module(
+                expert_i,
+                experts,
+                log_folder,
+                hparams,
+                data_mgrs,
+                version,
+                mean_tb_logger,
+                fast_dev_run=True,
+            )
+            for expert_i in range(len(experts))
+        ]
 
         trainers_modules[0][0].fit(trainers_modules[0][1])
 
         mean_tb_logger.stop_thread()
-
 
     def test_end2end_overfit(self):
         used_config = "base"
         data = (self.TEST_DATA, self.TEST_DATA, self.TEST_DATA)
 
-
-        hparams, log_folder, experts, version, experts_str, logger = prepare_vars(used_config, debug=True)
+        hparams, log_folder, experts, version, experts_str, logger = prepare_vars(
+            used_config, debug=True
+        )
 
         mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
         mean_tb_logger.start_thread()
 
         compare_to = utils.get_compare_to_path(hparams)
-        data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+        data_mgrs = [
+            BelleIIDataManager(
+                data[i], out_dim=hparams.out_size, compare_to=compare_to[i]
+            )
+            for i in range(3)
+        ]
 
-        trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, overfit_batches=1) for expert_i in range(len(experts))]
+        trainers_modules = [
+            create_trainer_pl_module(
+                expert_i,
+                experts,
+                log_folder,
+                hparams,
+                data_mgrs,
+                version,
+                mean_tb_logger,
+                overfit_batches=1,
+            )
+            for expert_i in range(len(experts))
+        ]
         trainers_modules[0][0].fit(trainers_modules[0][1])
 
         mean_tb_logger.stop_thread()
 
-
     # complete blackbox training with 2 epochs and check if all files exist
     def test_blackbox(self):
         data = (self.TEST_DATA, self.TEST_DATA, self.TEST_DATA)
-        log_folder = main.main(config="baseline_v2", data=data, debug=True, solo_expert=False)
+        log_folder = main.main(
+            config="baseline_v2", data=data, debug=True, solo_expert=False
+        )
         # we should have summery.json, weights.json, log from all experts, prediction_random1
         #         app.log       expert_1      expert_2.log  expert_4      git_id.txt             pred_data_random3.csv  prediction_random3.pt
         # expert_0      expert_1.log  expert_3      expert_4.log  pred_data_random1.csv  prediction_random1.pt  summary.json
@@ -70,7 +114,6 @@ class End2End(unittest.TestCase):
         # expert=-1 -> only one expert
         data = (self.TEST_DATA, self.TEST_DATA, self.TEST_DATA)
         main.main(config="baseline_v2", data=data, debug=True, solo_expert=True)
-        
 
 
 # TODO: tests for distribution
@@ -85,7 +128,26 @@ class FilterTest(unittest.TestCase):
         index_array = torch.tensor([1, 3, 8, 10])
         n = 11
         b_array = index2mask_array(index_array, n)
-        self.assertTrue((b_array == torch.tensor([False, True, False, True, False, False, False, False, True, False, True])).all())
+        self.assertTrue(
+            (
+                b_array
+                == torch.tensor(
+                    [
+                        False,
+                        True,
+                        False,
+                        True,
+                        False,
+                        False,
+                        False,
+                        False,
+                        True,
+                        False,
+                        True,
+                    ]
+                )
+            ).all()
+        )
 
     def test_identityfilter(self):
         d = self.dm.dataset(filter=IdentityFilter())
@@ -118,22 +180,27 @@ class FilterTest(unittest.TestCase):
         self.assertTrue((13824, 1) not in et)
 
     def test_ConCatFilter(self):
-        d = self.dm.dataset(filter=ConCatFilter(filters=[DuplicateEventsFilter(), Max2EventsFilter(), IdentityFilter()]))
+        d = self.dm.dataset(
+            filter=ConCatFilter(
+                filters=[DuplicateEventsFilter(), Max2EventsFilter(), IdentityFilter()]
+            )
+        )
         le = 15
         self.assertEqual(le, len(d))
+
 
 class WeightedSamplerTest(unittest.TestCase):
     # TEST_DATA = "neuro_trigger/tests/test_data_filter.csv"
     TEST_DATA = ["neuro_trigger/tests/test_data.csv"]
-    PLOT = False 
-
+    PLOT = False
 
     def test_distuniform(self):
         dist = uniform(loc=-1, scale=2)
-        n_buckets=11
+        n_buckets = 11
         dm = BelleIIDataManager(self.TEST_DATA)
-        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
-                dist=dist, n_buckets=n_buckets))
+        d = dm.dataset(
+            dataset_class=partial(BelleIIDistDataset, dist=dist, n_buckets=n_buckets)
+        )
         d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
         z_unchanged = [i[1][0].item() for i in d_unchanged]
@@ -153,14 +220,22 @@ class WeightedSamplerTest(unittest.TestCase):
         if self.PLOT:
             # plot histogram
             import matplotlib.pyplot as plt
+
             plt.clf()
             plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
             # xline = (-1, 1)
             # yline = (len(d)/n_buckets, len(d)/n_buckets)
             # plt.plot(xline, yline, color="green")
             plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
-            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
-            yline = [i*len(d) for i in d.probs]
+            xline = [
+                (
+                    d.get_bounds(i, inf_bounds=False)[0]
+                    + d.get_bounds(i, inf_bounds=False)[1]
+                )
+                / 2
+                for i in range(len(hist))
+            ]
+            yline = [i * len(d) for i in d.probs]
             # yline = (1/n_buckets, 1/n_buckets)
             plt.plot(xline, yline, color="red", label="Distribution")
             plt.xlabel("z (m)")
@@ -171,11 +246,14 @@ class WeightedSamplerTest(unittest.TestCase):
 
     def test_distnorm_inf_bounds(self):
         dist = norm(loc=0, scale=0.6)
-        n_buckets=11
+        n_buckets = 11
         # np.random.seed(1234)
         dm = BelleIIDataManager(self.TEST_DATA)
-        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
-                dist=dist, n_buckets=n_buckets, inf_bounds=True))
+        d = dm.dataset(
+            dataset_class=partial(
+                BelleIIDistDataset, dist=dist, n_buckets=n_buckets, inf_bounds=True
+            )
+        )
         d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
         z_unchanged = [i[1][0].item() for i in d_unchanged]
@@ -192,11 +270,19 @@ class WeightedSamplerTest(unittest.TestCase):
         if self.PLOT:
             # plot histogram
             import matplotlib.pyplot as plt
+
             plt.clf()
             plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
             plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
-            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
-            yline = [i*len(d) for i in d.probs]
+            xline = [
+                (
+                    d.get_bounds(i, inf_bounds=False)[0]
+                    + d.get_bounds(i, inf_bounds=False)[1]
+                )
+                / 2
+                for i in range(len(hist))
+            ]
+            yline = [i * len(d) for i in d.probs]
             plt.plot(xline, yline, color="red", label="Distribution")
             plt.xlabel("z (m)")
             plt.ylabel("count")
@@ -206,11 +292,14 @@ class WeightedSamplerTest(unittest.TestCase):
 
     def test_distnorm_non_inf_bounds(self):
         dist = norm(loc=0, scale=0.6)
-        n_buckets=11
+        n_buckets = 11
         # np.random.seed(1234)
         dm = BelleIIDataManager(self.TEST_DATA)
-        d = dm.dataset(dataset_class=partial(BelleIIDistDataset,
-                dist=dist, n_buckets=n_buckets, inf_bounds=False))
+        d = dm.dataset(
+            dataset_class=partial(
+                BelleIIDistDataset, dist=dist, n_buckets=n_buckets, inf_bounds=False
+            )
+        )
         d_unchanged = dm.dataset()
         z = [i[1][0].item() for i in d]
         z_unchanged = [i[1][0].item() for i in d_unchanged]
@@ -227,11 +316,19 @@ class WeightedSamplerTest(unittest.TestCase):
         if self.PLOT:
             # plot histogram
             import matplotlib.pyplot as plt
+
             plt.clf()
             plt.hist(z, n_buckets, range=(-1, 1), label="sampled z histogram")
             plt.hist(z_unchanged, n_buckets, range=(-1, 1), label="real z histogram")
-            xline = [(d.get_bounds(i, inf_bounds=False)[0]+d.get_bounds(i, inf_bounds=False)[1])/2 for i in range(len(hist))]
-            yline = [i*len(d) for i in d.probs]
+            xline = [
+                (
+                    d.get_bounds(i, inf_bounds=False)[0]
+                    + d.get_bounds(i, inf_bounds=False)[1]
+                )
+                / 2
+                for i in range(len(hist))
+            ]
+            yline = [i * len(d) for i in d.probs]
             plt.plot(xline, yline, color="red", label="Distribution")
             plt.xlabel("z (m)")
             plt.ylabel("count")
@@ -240,5 +337,5 @@ class WeightedSamplerTest(unittest.TestCase):
             plt.savefig("docs/norm_non_inf_bounds.png")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

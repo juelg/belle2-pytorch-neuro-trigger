@@ -5,6 +5,7 @@ log_old
 log_longrun
 lightning_logs
 venv
+venvtest
 questions.md
 notes.md
 *.code-workspace

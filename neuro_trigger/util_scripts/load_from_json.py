@@ -9,7 +9,9 @@ import json
 j_path = "json_weights/felix10_10.json"
 conf = "baseline_v1"
 experts = [f"expert_{i}" for i in range(5)]
-expert_paths = [os.path.join("log", conf, "version_1", expert, "ckpts") for expert in experts]
+expert_paths = [
+    os.path.join("log", conf, "version_1", expert, "ckpts") for expert in experts
+]
 
 fn = []
 for expert in expert_paths:
@@ -20,10 +22,14 @@ for expert in expert_paths:
 models = []
 for expert, path, fn in zip(experts, expert_paths, fn):
     c_path = os.path.join(path, fn)
-    model = NeuroTrigger.load_from_checkpoint(c_path, data=(
-    '/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz',
-    '/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz',
-    '/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz'))
+    model = NeuroTrigger.load_from_checkpoint(
+        c_path,
+        data=(
+            "/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random1.gz",
+            "/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random2.gz",
+            "/mnt/scratch/juelg/neuro-trigger-v2/data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_fp/neuroresults_random3.gz",
+        ),
+    )
     print(path)
     model.eval()
     models.append(model)
@@ -54,7 +60,8 @@ for expert, model in zip(experts, models):
             outputs.append((y, y_hat))
 
     model.visualize.create_plots(
-            torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
+        torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs])
+    )
 
 
 #     model.eval()

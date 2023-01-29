@@ -3,6 +3,7 @@ from typing import Dict, Tuple
 import numpy as np
 import gzip
 
+
 def load_dataset(path: str) -> Tuple[np.array]:
     """Loads a reco dataset from the given path.
 
@@ -26,7 +27,6 @@ def load_dataset(path: str) -> Tuple[np.array]:
     return data["x"], data["y"], data["expert"]
 
 
-
 def forward_numpy(expert: int, weights: Dict, x: np.array) -> np.array:
     """Calculates a forward pass of the network with tanh/2 activation funcitons.
 
@@ -41,9 +41,9 @@ def forward_numpy(expert: int, weights: Dict, x: np.array) -> np.array:
     """
     # "@" means matrix multiplication in numpy and "+" is component wise
     x = weights[expert]["w0"] @ x + weights[expert]["b0"]
-    x = np.tanh(x/2)
+    x = np.tanh(x / 2)
     x = weights[expert]["w1"] @ x + weights[expert]["b1"]
-    x = np.tanh(x/2)
+    x = np.tanh(x / 2)
     return x
 
 
@@ -71,21 +71,29 @@ def load_json_weights(path: str) -> Dict:
     weights = {}
     for expert in range(5):
         weights[expert] = {}
-        weights[expert]["w0"] = np.array(dic[f"expert_{expert}"]["weights"]["model.net.0.weight"])
-        weights[expert]["b0"] = np.array(dic[f"expert_{expert}"]["weights"]["model.net.0.bias"])
-        weights[expert]["w1"] = np.array(dic[f"expert_{expert}"]["weights"]["model.net.2.weight"])
-        weights[expert]["b1"] = np.array(dic[f"expert_{expert}"]["weights"]["model.net.2.bias"])
+        weights[expert]["w0"] = np.array(
+            dic[f"expert_{expert}"]["weights"]["model.net.0.weight"]
+        )
+        weights[expert]["b0"] = np.array(
+            dic[f"expert_{expert}"]["weights"]["model.net.0.bias"]
+        )
+        weights[expert]["w1"] = np.array(
+            dic[f"expert_{expert}"]["weights"]["model.net.2.weight"]
+        )
+        weights[expert]["b1"] = np.array(
+            dic[f"expert_{expert}"]["weights"]["model.net.2.bias"]
+        )
     return weights
-
 
 
 if __name__ == "__main__":
     # TODO: paths need to be adapted
     weights = load_json_weights("log/baseline_v2/version_3/weights.json")
-    x, y, expert = load_dataset("data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz")
+    x, y, expert = load_dataset(
+        "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+    )
     expert_to_use = 0
     # get the data belonging to the respective expert
     x_expert0 = x[expert == expert_to_use]
     y = forward_numpy(expert_to_use, weights, x_expert0[0])
     print(y)
-    

@@ -13,6 +13,7 @@ from neuro_trigger.pytorch import dataset_filters
 
 import hashlib
 
+
 def md5(fname):
     hash_md5 = hashlib.md5()
     with open(fname, "rb") as f:
@@ -20,23 +21,27 @@ def md5(fname):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
 
+
 # type variables for type hinting
-BDType = TypeVar('BDType', bound="BelleIIDataset")
-T = TypeVar('T')
+BDType = TypeVar("BDType", bound="BelleIIDataset")
+T = TypeVar("T")
 
 
 # TODO: should this also manage dataset versions and dataset splits -> yes splits would definitely make sense
 # TODO: add preprocessing, maybe pytorch transformers
 class BelleIIDataManager:
     _cache_dir = ".cache"
-    def __init__(self, paths: List[str], out_dim: int = 2, compare_to: Optional[str] = None) -> None:
+
+    def __init__(
+        self, paths: List[str], out_dim: int = 2, compare_to: Optional[str] = None
+    ) -> None:
         """Manages the loaded data. Can create arbitrary datasets out of the given data with given
         filters applied.
 
 
         Args:
             paths (List[str]): List of paths to the dataset
-            out_dim (int, optional): Numer of output neurons. Can either be 2 or 1.
+            out_dim (int, optional): Number of output neurons. Can either be 2 or 1.
                 If out_dim=1 than the network is trained on z. Defaults to 2.
             compare_to (Optional[str], optional): Path to a training to which one wants to compare.
                 Path should have the following format: baseline_v2/version_4. Defaults to None.
@@ -47,21 +52,18 @@ class BelleIIDataManager:
         self._cache_files = [f"{md5(path)}.pt" for path in self.paths]
         self.logger = logging.getLogger()
         self.out_dim = out_dim
-        self.compare_to = compare_to 
+        self.compare_to = compare_to
         self.data: Optional[Dict[str, torch.Tensor]] = None
         self.load_data(self.compare_to)
 
-        paths_str = '\n'.join(self.paths)
-        self.logger.debug(
-            f"Dataset:\n{paths_str}\nwith length {len(self)} done init")
+        paths_str = "\n".join(self.paths)
+        self.logger.debug(f"Dataset:\n{paths_str}\nwith length {len(self)} done init")
 
     def __len__(self) -> int:
-        """Length of the dataset
-        """
+        """Length of the dataset"""
         return len(self.data["x"])
 
-
-    def load_data(self, compare_to: Optional[str]=None):
+    def load_data(self, compare_to: Optional[str] = None):
         """Loads the csv data into self.data.
 
         Args:
@@ -74,10 +76,12 @@ class BelleIIDataManager:
         self.data = {
             "x": torch.Tensor(dt[:, 9:36]),
             # only 36:37 if only z (out_dim=2)
-            "y": torch.Tensor(dt[:, 36:36+self.out_dim]),
+            "y": torch.Tensor(dt[:, 36 : 36 + self.out_dim]),
             "expert": torch.Tensor(dt[:, 6]),
             # out_dim==2 -> -4:-1:2 out_dim==1 -> -4:-3:2
-            "y_hat_old": torch.Tensor(dt[:, -4:(-1 if self.out_dim == 2 else -3):2]),
+            "y_hat_old": torch.Tensor(
+                dt[:, -4 : (-1 if self.out_dim == 2 else -3) : 2]
+            ),
             # TODO: problem this does not work for numbers larger than 2^24+1 (16 777 217)
             # as the float can represent ints any more
             "idx": torch.arange(dt.shape[0]),
@@ -93,12 +97,16 @@ class BelleIIDataManager:
                 # filter for the correct indicies
                 y_hat_old = torch.load(f)[self.data["idx"]]
             # check the dimension correctness
-            assert(y_hat_old.shape[1] == 2)
+            assert y_hat_old.shape[1] == 2
             if self.out_dim == 1:
-                y_hat_old = y_hat_old[:,0]
+                y_hat_old = y_hat_old[:, 0]
             self.data["y_hat_old"] = y_hat_old
 
-    def dataset(self, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
+    def dataset(
+        self,
+        filter: Optional[dataset_filters.Filter] = None,
+        dataset_class: Optional[Union[partial, BDType]] = None,
+    ) -> "BelleIIDataset":
         """Calculates the dataset given the configured filters and returns the corresponding dataset object.
 
         Args:
@@ -119,7 +127,12 @@ class BelleIIDataManager:
         self.logger.debug(f"Size after filter: {len(data['x'])}")
         return dataset_class(data)
 
-    def expert_dataset(self, expert: int = -1, filter: Optional[dataset_filters.Filter] = None, dataset_class: Optional[Union[partial, BDType]] = None) -> "BelleIIDataset":
+    def expert_dataset(
+        self,
+        expert: int = -1,
+        filter: Optional[dataset_filters.Filter] = None,
+        dataset_class: Optional[Union[partial, BDType]] = None,
+    ) -> "BelleIIDataset":
         """Similar to the `dataset` function except that the ExpertFilter is automatically applied with the given expert.
 
         Args:
@@ -131,10 +144,11 @@ class BelleIIDataManager:
             BelleIIDataset: The resulting filtered dataset object
         """
         filter = filter or dataset_filters.IdentityFilter()
-        filter = dataset_filters.ConCatFilter([filter, dataset_filters.ExpertFilter(expert=expert)])
+        filter = dataset_filters.ConCatFilter(
+            [filter, dataset_filters.ExpertFilter(expert=expert)]
+        )
         dataset = self.dataset(filter, dataset_class)
-        self.logger.debug(
-            f"Expert #{expert} with length {len(dataset)} created")
+        self.logger.debug(f"Expert #{expert} with length {len(dataset)} created")
         return dataset
 
     def get_data_array(self) -> torch.Tensor:
@@ -158,10 +172,8 @@ class BelleIIDataManager:
         return torch.cat(dts, dim=0)
 
     def read_from_csv(self, path: str) -> torch.Tensor:
-        """This function is used whenever a dataset has not yet been cached and needs to be read from a CSV file.
-        """
+        """This function is used whenever a dataset has not yet been cached and needs to be read from a CSV file."""
         return torch.Tensor(np.loadtxt(path, skiprows=2))
-
 
     def save_cache(self, dt: Union[torch.Tensor, np.array], cache_file: str):
         """Saves a dataset tensor with torch.save to be able to read it in much faster than parsing a CSV file.
@@ -176,8 +188,7 @@ class BelleIIDataManager:
             torch.save(dt, f)
 
     def open_cache(self, cache_file: str) -> torch.Tensor:
-        """Opens a cached dataset given its file name. This file name must be inferred with the md5 hash with the original dataset's filename
-        """
+        """Opens a cached dataset given its file name. This file name must be inferred with the md5 hash with the original dataset's filename"""
         with open(os.path.join(self._cache_dir, cache_file), "rb") as f:
             dt = torch.load(f)
             if isinstance(dt, np.ndarray):
@@ -186,8 +197,8 @@ class BelleIIDataManager:
 
 
 class BelleIIDataset(Dataset):
-    """Dataset representation of the Belle II CSV dataset
-    """
+    """Dataset representation of the Belle II CSV dataset"""
+
     Z_SCALING = [-100, 100]
     THETA_SCALING = [10, 170]
 
@@ -196,11 +207,10 @@ class BelleIIDataset(Dataset):
         Args:
             data (Dict[str, torch.Tensor]): data in dictionary form as returned by `load_data` in BelleIIDataManager
         """
-        self. data = data
+        self.data = data
 
     def __len__(self) -> int:
-        """Returns dataset length
-        """
+        """Returns dataset length"""
         return len(self.data["x"])
 
     def __getitem__(self, idx: int) -> Tuple[float, float, float, int]:
@@ -217,10 +227,21 @@ class BelleIIDataset(Dataset):
         """
         if idx >= len(self) or idx < 0:
             raise IndexError()
-        return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
+        return (
+            self.data["x"][idx],
+            self.data["y"][idx],
+            self.data["y_hat_old"][idx],
+            self.data["idx"][idx],
+        )
 
     @staticmethod
-    def scale(x: Union[float, torch.Tensor], lower: float, upper: float, lower_new: float, upper_new: float) -> Union[torch.Tensor, float]:
+    def scale(
+        x: Union[float, torch.Tensor],
+        lower: float,
+        upper: float,
+        lower_new: float,
+        upper_new: float,
+    ) -> Union[torch.Tensor, float]:
         """Scales input linearly: [lower, upper] -> [lower_new, upper_new]
 
         Args:
@@ -235,7 +256,7 @@ class BelleIIDataset(Dataset):
         """
         # linear scaling
         # first scale to [0, 1], then scale to new interval
-        return ((x-lower) / (upper-lower)) * (upper_new-lower_new) + lower_new
+        return ((x - lower) / (upper - lower)) * (upper_new - lower_new) + lower_new
 
     @staticmethod
     def to_physics(x: torch.Tensor) -> torch.Tensor:
@@ -246,7 +267,7 @@ class BelleIIDataset(Dataset):
 
         If x has two dimensions, it is assumed that the first dimension is z and the second is theta.
         z is mapped as described above. Theta is mapped as follows: [-1, 1] -> [10, 170] (degree)
- 
+
         Args:
             x (torch.Tensor): z (theta) tensor that should be mapped to the physical measured interval
 
@@ -254,19 +275,22 @@ class BelleIIDataset(Dataset):
             torch.Tensor: Mapped z (and theta) to the physical interval in the respective units
         """
         x_ = x.clone()
-        x_[:,0] = BelleIIDataset.scale(x_[:,0], -1, 1, *BelleIIDataset.Z_SCALING)
+        x_[:, 0] = BelleIIDataset.scale(x_[:, 0], -1, 1, *BelleIIDataset.Z_SCALING)
         if x_.shape[1] > 1:
-            x_[:,1] = BelleIIDataset.scale(x_[:,1], -1, 1, *BelleIIDataset.THETA_SCALING)
+            x_[:, 1] = BelleIIDataset.scale(
+                x_[:, 1], -1, 1, *BelleIIDataset.THETA_SCALING
+            )
         return x_
 
     @staticmethod
     def from_physics(x: torch.Tensor) -> torch.Tensor:
-        """Like to_physics but in the opposit direction: Map values to [-1, 1] interval
-        """
+        """Like to_physics but in the opposit direction: Map values to [-1, 1] interval"""
         x_ = x.clone()
-        x_[:,0] = BelleIIDataset.scale(x_[:,0], *BelleIIDataset.Z_SCALING, -1, 1)
+        x_[:, 0] = BelleIIDataset.scale(x_[:, 0], *BelleIIDataset.Z_SCALING, -1, 1)
         if x_.shape[1] > 1:
-            x_[:,1] = BelleIIDataset.scale(x_[:,1], *BelleIIDataset.THETA_SCALING, -1, 1)
+            x_[:, 1] = BelleIIDataset.scale(
+                x_[:, 1], *BelleIIDataset.THETA_SCALING, -1, 1
+            )
         return x_
 
     @property
@@ -276,12 +300,15 @@ class BelleIIDataset(Dataset):
         """
         return True
 
+
 class BelleIIDistDataset(BelleIIDataset):
-    """Implements dataset reweighting with a given scipy distribution.
-    """
+    """Implements dataset reweighting with a given scipy distribution."""
+
     # TODO: should this return batches?
 
-    def __init__(self, *args, dist, n_buckets: int = 21, inf_bounds: bool = False, **kwargs) -> None:
+    def __init__(
+        self, *args, dist, n_buckets: int = 21, inf_bounds: bool = False, **kwargs
+    ) -> None:
         """
         Args:
             dist (scipy.stats): Scipy distribution to sample the buckets
@@ -291,7 +318,9 @@ class BelleIIDistDataset(BelleIIDataset):
                 to a sum of 1. Defaults to False.
         """
         super().__init__(*args, **kwargs)
-        self.sort_z: List[Tuple[int, float]] = [(idx, i[0].item()) for idx, i in enumerate(self.data["y"])]
+        self.sort_z: List[Tuple[int, float]] = [
+            (idx, i[0].item()) for idx, i in enumerate(self.data["y"])
+        ]
         self.sort_z = sorted(self.sort_z, key=lambda x: x[1])
         self.n_buckets = n_buckets
         self.buckets = {}
@@ -306,11 +335,13 @@ class BelleIIDistDataset(BelleIIDataset):
         self.dist = dist
         self.inf_bounds = inf_bounds
 
-        self.probs = [self.get_prob_for_bounds(*self.get_bounds(bucket)) for bucket in self.bucket_idx]
+        self.probs = [
+            self.get_prob_for_bounds(*self.get_bounds(bucket))
+            for bucket in self.bucket_idx
+        ]
         if not self.inf_bounds:
             # normalize to one
-            self.probs = [i/sum(self.probs) for i in self.probs]
-
+            self.probs = [i / sum(self.probs) for i in self.probs]
 
     def get_prob_for_bounds(self, lower: float, upper: float) -> float:
         """Given the scipy distribution, this calulates the CDF difference between lower and upper
@@ -326,9 +357,10 @@ class BelleIIDistDataset(BelleIIDataset):
             float: Integrated probability
         """
         return self.dist.cdf(upper) - self.dist.cdf(lower)
-    
 
-    def get_bounds(self, bucket: int, inf_bounds: Optional[bool]=None) -> Tuple[float, float]:
+    def get_bounds(
+        self, bucket: int, inf_bounds: Optional[bool] = None
+    ) -> Tuple[float, float]:
         """Interval bounds of the given bucket distributed within [-1,1].
 
         Args:
@@ -346,8 +378,8 @@ class BelleIIDistDataset(BelleIIDataset):
         """
         if inf_bounds is None:
             inf_bounds = self.inf_bounds
-        lower = 2*(bucket/self.n_buckets - 0.5)
-        upper = lower + 2/self.n_buckets
+        lower = 2 * (bucket / self.n_buckets - 0.5)
+        upper = lower + 2 / self.n_buckets
         if inf_bounds:
             if math.isclose(lower, -1):
                 lower = -math.inf
@@ -355,22 +387,19 @@ class BelleIIDistDataset(BelleIIDataset):
                 upper = math.inf
         return lower, upper
 
-
     def get_bucket(self, z: float) -> int:
-        """Returns the bucket for a given z.
-        """
+        """Returns the bucket for a given z."""
         if z == 1:
             # last bucket should include the 1.0: [x, 1.0]
             return self.n_buckets - 1
-        return math.floor((z/2 + 0.5)*self.n_buckets)
+        return math.floor((z / 2 + 0.5) * self.n_buckets)
 
     def __len__(self) -> int:
         return len(self.data["x"])
 
     @property
     def requires_shuffle(self) -> bool:
-        """Does not require further shuffeling by the dataloader as samples are randomly picked anyway.
-        """
+        """Does not require further shuffeling by the dataloader as samples are randomly picked anyway."""
         return False
 
     def __getitem__(self, idx: int) -> Tuple[float, float, float, float]:
@@ -397,7 +426,12 @@ class BelleIIDistDataset(BelleIIDataset):
         # sample uniformly from that bucket
         b = self.buckets[bucket]
         idx = self.uniform_random_choice(b)
-        return self.data["x"][idx], self.data["y"][idx], self.data["y_hat_old"][idx], self.data["idx"][idx]
+        return (
+            self.data["x"][idx],
+            self.data["y"][idx],
+            self.data["y_hat_old"][idx],
+            self.data["idx"][idx],
+        )
 
     def uniform_random_choice(self, a: Iterable[T]) -> T:
         """Selects uniformly random sample from array/Iterable a.
@@ -412,6 +446,5 @@ class BelleIIDistDataset(BelleIIDataset):
         Returns:
             T: Selected sample.
         """
-        idx = random.randint(0, len(a)-1)
+        idx = random.randint(0, len(a) - 1)
         return a[idx]
-

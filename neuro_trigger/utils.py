@@ -22,6 +22,7 @@ IN2MODE = ["train", "val", "test"]
 
 PREDICTIONS_DATASET_FILENAME = "prediction_random{}{}.pt"
 
+
 class ThreadLogFilter(logging.Filter):
     """
     This filter only show log entries for specified thread name
@@ -34,12 +35,19 @@ class ThreadLogFilter(logging.Filter):
     def filter(self, record):
         return record.threadName == self.thread_name
 
+
 def get_compare_to_path(hparams: Dict) -> List[Optional[str]]:
     if hparams.compare_to:
-        return [os.path.join("log", hparams.compare_to, PREDICTIONS_DATASET_FILENAME.format(i+1, "")) for i in range(3)]
+        return [
+            os.path.join(
+                "log",
+                hparams.compare_to,
+                PREDICTIONS_DATASET_FILENAME.format(i + 1, ""),
+            )
+            for i in range(3)
+        ]
     else:
         return [None, None, None]
-    
 
 
 def snap_source_state(log_folder: str) -> str:
@@ -53,8 +61,7 @@ def snap_source_state(log_folder: str) -> str:
         str: commit id for further processing
     """
     # get git commit id
-    os.system(
-        f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
+    os.system(f'git log --format="%H" -n 1 > {os.path.join(log_folder, "git_id.txt")}')
     # get git diff
     os.system(f'git diff > {os.path.join(log_folder, "git_diff.txt")}')
 
@@ -63,10 +70,10 @@ def snap_source_state(log_folder: str) -> str:
 
 
 def create_dataset_with_predictions_per_expert(
-        expert_pl_modules: List[LightningModule],
-        mode: str = "val",
-        filter: Optional[Filter] = None
-    ) -> Dict[int, torch.tensor]:
+    expert_pl_modules: List[LightningModule],
+    mode: str = "val",
+    filter: Optional[Filter] = None,
+) -> Dict[int, torch.tensor]:
     """Create predictions for a specific dataset using a specific filter for all experts
 
     Args:
@@ -84,12 +91,19 @@ def create_dataset_with_predictions_per_expert(
         expert.eval()
         with torch.no_grad():
 
-            d = DataLoader(expert.get_expert_dataset(split=mode, filter=filter), batch_size=10000, num_workers=0, drop_last=False)
+            d = DataLoader(
+                expert.get_expert_dataset(split=mode, filter=filter),
+                batch_size=10000,
+                num_workers=0,
+                drop_last=False,
+            )
             for i in d:
                 x, y, y_hat_old, idx = i
                 y_hat = expert(x)
                 # Attention: this implicitly converts the index to float32!
-                preds[expert.expert].append(torch.cat([idx.unsqueeze(1), y_hat, y, y_hat_old], dim=1))
+                preds[expert.expert].append(
+                    torch.cat([idx.unsqueeze(1), y_hat, y, y_hat_old], dim=1)
+                )
 
     for expert in expert_pl_modules:
         # cat and not stack because we have batches
@@ -99,12 +113,12 @@ def create_dataset_with_predictions_per_expert(
 
 
 def save_csv_dataset_with_predictions(
-        expert_pl_modules: List[LightningModule],
-        preds: Dict[int, torch.tensor],
-        path: str,
-        mode: str = "val",
-        name_extension: str = ""
-    ):
+    expert_pl_modules: List[LightningModule],
+    preds: Dict[int, torch.tensor],
+    path: str,
+    mode: str = "val",
+    name_extension: str = "",
+):
     """Saves given prediction to a CSV file
 
     Args:
@@ -115,31 +129,39 @@ def save_csv_dataset_with_predictions(
         name_extension (str, optional): Extension that should be added to the file's name. Defaults to "".
     """
     mode = MODE2IN[mode]
-    idxs = torch.cat([preds[expert.expert][:,0] for expert in expert_pl_modules])
-    data = torch.cat([preds[expert.expert][:,1:3] for expert in expert_pl_modules])
+    idxs = torch.cat([preds[expert.expert][:, 0] for expert in expert_pl_modules])
+    data = torch.cat([preds[expert.expert][:, 1:3] for expert in expert_pl_modules])
 
     data_arr = expert_pl_modules[0].data_mgrs[mode].get_data_array()
     new_arr = np.zeros((data_arr.shape[0], data_arr.shape[1] + 2))
-    new_arr[:,:-2] = data_arr
+    new_arr[:, :-2] = data_arr
     for i in range(len(data)):
-        new_arr[idxs[i].int().item(),-2:] = data[i]
+        new_arr[idxs[i].int().item(), -2:] = data[i]
 
     fname = f"pred_data_random{mode+1}{name_extension}.csv"
 
-    np.savetxt(os.path.join(path, fname), new_arr, delimiter="", fmt="\t".join(['%i'for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]))
+    np.savetxt(
+        os.path.join(path, fname),
+        new_arr,
+        delimiter="",
+        fmt="\t".join(
+            ["%i" for _ in range(9)] + ["%f" for _ in range(33)] + ["%.16f", "%.16f"]
+        ),
+    )
 
-    with open(os.path.join(path, fname), 'r+') as file:
+    with open(os.path.join(path, fname), "r+") as file:
         content = file.read()
         file.seek(0)
         file.write(CSV_HEAD + content)
 
+
 def save_predictions_pickle(
-        expert_pl_modules: List[LightningModule],
-        preds: Dict[int, torch.tensor],
-        path: str,
-        mode: str = "val",
-        name_extension: str = ""
-    ):
+    expert_pl_modules: List[LightningModule],
+    preds: Dict[int, torch.tensor],
+    path: str,
+    mode: str = "val",
+    name_extension: str = "",
+):
     """Saves predictions as pickle files / torch binary format
 
     _extended_summary_
@@ -157,13 +179,18 @@ def save_predictions_pickle(
     # stack needed as sorted creates python list
     data = torch.stack(dataset)
 
-    with open(os.path.join(path, PREDICTIONS_DATASET_FILENAME.format(mode+1, name_extension)), 'wb') as file:
-        torch.save(data[:,1:3], file)
+    with open(
+        os.path.join(
+            path, PREDICTIONS_DATASET_FILENAME.format(mode + 1, name_extension)
+        ),
+        "wb",
+    ) as file:
+        torch.save(data[:, 1:3], file)
+
 
 def get_loss(
-        expert_pl_modules: List[LightningModule],
-        preds: Dict[int, torch.tensor]
-    ) -> Tuple[float, float, Dict[int, float], Dict[int, float]]:
+    expert_pl_modules: List[LightningModule], preds: Dict[int, torch.tensor]
+) -> Tuple[float, float, Dict[int, float], Dict[int, float]]:
     """Calculates loss and the standard deviation of the z difference for each expert and also
     averaged over all experts
 
@@ -179,13 +206,17 @@ def get_loss(
     loss = {}
     z_diff_std = {}
     for expert in expert_pl_modules:
-        loss[expert.expert] = expert.crit(preds[expert.expert][:,1:3], preds[expert.expert][:,3:5]).item()
-        z_diff_std[expert.expert] = torch.std(preds[expert.expert][:,1] - preds[expert.expert][:,3]).item()
+        loss[expert.expert] = expert.crit(
+            preds[expert.expert][:, 1:3], preds[expert.expert][:, 3:5]
+        ).item()
+        z_diff_std[expert.expert] = torch.std(
+            preds[expert.expert][:, 1] - preds[expert.expert][:, 3]
+        ).item()
 
     overall = torch.cat([preds[expert.expert] for expert in expert_pl_modules])
 
-    loss_overall = expert.crit(overall[:,1:3], overall[:,3:5])
-    z_diff_std_overall = torch.std(overall[:,1] - overall[:,3])
+    loss_overall = expert.crit(overall[:, 1:3], overall[:, 3:5])
+    z_diff_std_overall = torch.std(overall[:, 1] - overall[:, 3])
 
     return loss_overall.item(), z_diff_std_overall.item(), loss, z_diff_std
 
@@ -194,7 +225,7 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
     """Saves weights of the pytorch networks to a json file
 
     The json file will have the following format (only in case the BaselineModel is used):
-    
+
     {
         "expert_x": {
             "shapes": {
@@ -236,10 +267,8 @@ def expert_weights_json(expert_pl_modules: List[LightningModule], path: str):
 
 
 def load_from_checkpoint(
-        config: str,
-        version: str = "version_1",
-        experts: Optional[List[str]] = None
-    ) -> List[NeuroTrigger]:
+    config: str, version: str = "version_1", experts: Optional[List[str]] = None
+) -> List[NeuroTrigger]:
     """Loads the pytorch lightning module initialized with the weights from a given checkpoint
 
     Args:
@@ -255,28 +284,29 @@ def load_from_checkpoint(
 
     experts = experts or [f"expert_{i}" for i in range(5)]
 
-    expert_paths = [os.path.join("log", config, version, expert, "ckpts") for expert in experts]
+    expert_paths = [
+        os.path.join("log", config, version, expert, "ckpts") for expert in experts
+    ]
 
     checkpoints = []
     for expert in expert_paths:
         checkpoints.append([i for i in os.listdir(expert) if i.startswith("epoch")][0])
 
-
     models = []
     for expert, path, checkpoint in zip(experts, expert_paths, checkpoints):
         c_path = os.path.join(path, checkpoint)
-        model = NeuroTrigger.load_from_checkpoint(c_path) # TODO: maybe add data
+        model = NeuroTrigger.load_from_checkpoint(c_path)  # TODO: maybe add data
         model.eval()
         models.append(model)
     return models
 
 
 def load_from_json(
-        json_path: str,
-        config: str,
-        version: str = "version_1",
-        experts: Optional[List] = None
-    ) -> List[NeuroTrigger]:
+    json_path: str,
+    config: str,
+    version: str = "version_1",
+    experts: Optional[List] = None,
+) -> List[NeuroTrigger]:
     """Loads the pytorch lightning module with initialized weights from a given json file
     (produced with the `expert_weights_json` function or at least with the same format)
 
@@ -292,12 +322,15 @@ def load_from_json(
         List[NeuroTrigger]: _description_
     """
 
-    models  = load_from_checkpoint(config, version, experts)
+    models = load_from_checkpoint(config, version, experts)
 
     return load_json_weights_to_module(json_path, models)
 
-def load_json_weights_to_module(json_path: str, models: List[NeuroTrigger]) -> List[NeuroTrigger]:
-    """Loads weights contained in a given json file (produced by or having the same format as 
+
+def load_json_weights_to_module(
+    json_path: str, models: List[NeuroTrigger]
+) -> List[NeuroTrigger]:
+    """Loads weights contained in a given json file (produced by or having the same format as
     the `expert_weights_json` function) into given pytorch lighting modules
 
     Args:
@@ -331,11 +364,14 @@ def create_figures(path: str, models: List[NeuroTrigger], mode: int = 2):
         outputs = []
         model.visualize.folder = os.path.join(path, model.exp_str())
         with torch.no_grad():
-            d = DataLoader(model.data[mode], batch_size=10000, num_workers=0, drop_last=False)
+            d = DataLoader(
+                model.data[mode], batch_size=10000, num_workers=0, drop_last=False
+            )
             for i in d:
                 x, y, _, _ = i
                 y_hat = model(x)
                 outputs.append((y, y_hat))
 
         model.visualize.create_plots(
-                torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs]))
+            torch.cat([i[0] for i in outputs]), torch.cat([i[1] for i in outputs])
+        )

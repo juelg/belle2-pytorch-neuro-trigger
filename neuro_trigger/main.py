@@ -19,22 +19,44 @@ import torch
 from neuro_trigger.pytorch.dataset_filters import IdentityFilter
 from easydict import EasyDict
 
-from neuro_trigger.utils import ThreadLogFilter, create_dataset_with_predictions_per_expert, expert_weights_json, get_loss, load_json_weights_to_module, save_csv_dataset_with_predictions, save_predictions_pickle, snap_source_state
+from neuro_trigger.utils import (
+    ThreadLogFilter,
+    create_dataset_with_predictions_per_expert,
+    expert_weights_json,
+    get_loss,
+    load_json_weights_to_module,
+    save_csv_dataset_with_predictions,
+    save_predictions_pickle,
+    snap_source_state,
+)
 
 
 # Data needs to be mounted to the data folder, e.g. with sshfs:
 # sshfs juelg@neurobelle.mpp.mpg.de:/mnt/scratch/data data
 
-train = ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"]
-val =   ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"]
-test =  ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"]
+train = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+]
+val = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+]
+test = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+]
 
 DATA_DEBUG = (train, val, test)
 
-train = ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"]
-val =   ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"]
-test =  ["data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"]
+train = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random1.gz"
+]
+val = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random2.gz"
+]
+test = [
+    "data/dqmNeuro/dqmNeuro_mpp34_exp20_400-944/lt100reco/idhist_10170_default/section_correct_fp/neuroresults_random3.gz"
+]
 DATA_PROD = (train, val, test)
+
 
 def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger):
     """Runs training and validation
@@ -53,26 +75,30 @@ def fit(trainer_module: Tuple[pl.Trainer, NeuroTrigger], logger: logging.Logger)
 
     # load the best weights for evaluation
     ckpt_path = os.path.join(trainer_module[1].log_path, "ckpts")
-    best_ckpt = os.path.join(ckpt_path, [i for i in os.listdir(ckpt_path) if i.startswith("epoch")][0])
+    best_ckpt = os.path.join(
+        ckpt_path, [i for i in os.listdir(ckpt_path) if i.startswith("epoch")][0]
+    )
     trainer_module[1].load_state_dict(torch.load(best_ckpt)["state_dict"])
 
     # create eval plots
     trainer_module[1].validate(path=trainer_module[1].log_path, mode="val")
     logger.info(f"Expert {trainer_module[1].expert} done creating val plots, finished.")
 
-def create_trainer_pl_module(expert_i: int,
-                             experts: List[int],
-                             log_folder: str,
-                             hparams: EasyDict,
-                             data_mgrs: List[BelleIIDataManager],
-                             version: int,
-                             mean_tb_logger: MeanTBLogger,
-                             fast_dev_run: bool = False,
-                             overfit_batches: Union[int, float] = 0.0,
-                             debug: bool = False
-    ) -> Tuple[pl.Trainer, NeuroTrigger]:
+
+def create_trainer_pl_module(
+    expert_i: int,
+    experts: List[int],
+    log_folder: str,
+    hparams: EasyDict,
+    data_mgrs: List[BelleIIDataManager],
+    version: int,
+    mean_tb_logger: MeanTBLogger,
+    fast_dev_run: bool = False,
+    overfit_batches: Union[int, float] = 0.0,
+    debug: bool = False,
+) -> Tuple[pl.Trainer, NeuroTrigger]:
     """Initializes the pytorch lightning module and the pytorch lightning trainer.
-    
+
     This function should be executed for each expert.
 
     Args:
@@ -94,26 +120,28 @@ def create_trainer_pl_module(expert_i: int,
     # this seems unnecassary
     expert = experts[expert_i]
     early_stop_callback = EarlyStopping(
-        monitor='val_loss',
-        patience=30,
-        strict=True,
-        verbose=True,
-        mode='min'
+        monitor="val_loss", patience=30, strict=True, verbose=True, mode="min"
     )
     model_checkpoint = ModelCheckpoint(
         os.path.join(log_folder, f"expert_{expert}", "ckpts"),
-        monitor='val_loss',
+        monitor="val_loss",
         save_last=True,
         save_top_k=1,
     )
     callbacks = [early_stop_callback, model_checkpoint]
 
-
-    pl_module = NeuroTrigger(hparams, data_mgrs, expert=expert, log_path=os.path.join(log_folder, f"expert_{expert}"))
+    pl_module = NeuroTrigger(
+        hparams,
+        data_mgrs,
+        expert=expert,
+        log_path=os.path.join(log_folder, f"expert_{expert}"),
+    )
     trainer = pl.Trainer(
-        logger=[TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"), 
-                    CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
-                    MeanLoggerExp(mean_tb_logger.queue, version, mean_tb_logger, expert)],
+        logger=[
+            TensorBoardLogger(os.path.join(log_folder, f"expert_{expert}"), "tb"),
+            CSVLogger(os.path.join(log_folder, f"expert_{expert}"), "csv"),
+            MeanLoggerExp(mean_tb_logger.queue, version, mean_tb_logger, expert),
+        ],
         # row_log_interval=1,
         # track_grad_norm=2,
         # weights_summary=None,
@@ -134,6 +162,7 @@ def create_trainer_pl_module(expert_i: int,
     )
     return trainer, pl_module
 
+
 def write_global_journal(base_log: str, config: str, journal_name: str = "log.txt"):
     """Writes timestamp and log path to a global training log
 
@@ -145,7 +174,13 @@ def write_global_journal(base_log: str, config: str, journal_name: str = "log.tx
     with open(os.path.join(base_log, journal_name), "a") as f:
         f.write(f"{datetime.now()}: {config}\n")
 
-def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False, overwrite_hparams: Optional[Dict[str, Any]] = None) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
+
+def prepare_vars(
+    config: str,
+    debug: bool = False,
+    solo_expert: bool = False,
+    overwrite_hparams: Optional[Dict[str, Any]] = None,
+) -> Tuple[EasyDict, str, List[int], int, List[str], logging.Logger]:
     """Creates logging folder, initializes logger per expert and writes the run to a global training log file
 
     Args:
@@ -163,52 +198,59 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False, ov
     hparams = get_hyperpar_by_name(config, overwrite_hparams)
     if debug:
         hparams["epochs"] = 10
-    experts = hparams.experts if not solo_expert else [-1] #[0, 1, 2, 3, 4]
+    experts = hparams.experts if not solo_expert else [-1]  # [0, 1, 2, 3, 4]
 
     experts_str = [f"expert_{i}" for i in experts]
     logger = logging.getLogger()
 
     # check the latest version
-    version = max([int(str(i).split("_")[-1])
-                for i in (Path(base_log) / config).glob("version_*")], default=-1) + 1
+    version = (
+        max(
+            [
+                int(str(i).split("_")[-1])
+                for i in (Path(base_log) / config).glob("version_*")
+            ],
+            default=-1,
+        )
+        + 1
+    )
 
     log_folder = os.path.join(base_log, config, f"version_{version}")
     if not Path(log_folder).exists():
         Path(log_folder).mkdir(parents=True)
 
-
-
     logging.basicConfig(
         level=logging.DEBUG,
-        format='%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        format="%(asctime)s:%(levelname)s:%(name)s:%(message)s",
     )
 
     # mute other libs debugging output
-    logging.getLogger('matplotlib.font_manager').disabled = True
-    logging.getLogger('matplotlib.ticker').disabled = True
-    logging.getLogger('matplotlib.colorbar').disabled = True
-    logging.getLogger('PIL.PngImagePlugin').disabled = True
-    logging.getLogger('h5py._conv').disabled = True
-
-
+    logging.getLogger("matplotlib.font_manager").disabled = True
+    logging.getLogger("matplotlib.ticker").disabled = True
+    logging.getLogger("matplotlib.colorbar").disabled = True
+    logging.getLogger("PIL.PngImagePlugin").disabled = True
+    logging.getLogger("h5py._conv").disabled = True
 
     # general logger which logs everything
     fh = logging.FileHandler(os.path.join(log_folder, f"app.log"), mode="w")
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
+        "%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s"
+    )
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
     # create file loggers
     for expert in experts:
-        fh = logging.FileHandler(os.path.join(
-            log_folder, f"expert_{expert}.log"), mode="w")
+        fh = logging.FileHandler(
+            os.path.join(log_folder, f"expert_{expert}.log"), mode="w"
+        )
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
-            '%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s')
+            "%(asctime)s:%(threadName)s:%(levelname)s:%(name)s:%(message)s"
+        )
         fh.setFormatter(formatter)
-        fh.addFilter(ThreadLogFilter(f'expert_{expert}'))
+        fh.addFilter(ThreadLogFilter(f"expert_{expert}"))
         logger.addHandler(fh)
 
     logger.info(f"Using config {config} in version {version}")
@@ -218,8 +260,14 @@ def prepare_vars(config: str, debug: bool = False, solo_expert: bool = False, ov
     return hparams, log_folder, experts, version, experts_str, logger
 
 
-def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool = False, solo_expert: bool = False,
-         run_description: Optional[str] = None, overwrite_hparams: Optional[Dict[str, Any]] = None) -> str:
+def main(
+    config: str,
+    data: Tuple[List[str], List[str], List[str]],
+    debug: bool = False,
+    solo_expert: bool = False,
+    run_description: Optional[str] = None,
+    overwrite_hparams: Optional[Dict[str, Any]] = None,
+) -> str:
     """Wirtes commit id and diff, runs training and creates output dataset
 
     Args:
@@ -234,7 +282,9 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
     Returns:
         str: Log folder path
     """
-    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(config, debug, solo_expert, overwrite_hparams)
+    hparams, log_folder, experts, version, experts_str, logger = prepare_vars(
+        config, debug, solo_expert, overwrite_hparams
+    )
 
     # save git commit and git diff in file
     hparams["git_id"] = snap_source_state(log_folder)
@@ -244,20 +294,33 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
         hparams["run_description"] = input("Experiment run description: ")
     else:
         hparams["run_description"] = run_description
-        
 
     with open(os.path.join(log_folder, "summary.json"), "w") as f:
         json.dump(hparams, f, indent=2, sort_keys=True)
 
     mean_tb_logger = MeanTBLogger(os.path.join(log_folder, "mean_expert"), experts)
     mean_tb_logger.start_thread()
-    
 
     compare_to = utils.get_compare_to_path(hparams)
 
-    data_mgrs = [BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i]) for i in range(3)]
+    data_mgrs = [
+        BelleIIDataManager(data[i], out_dim=hparams.out_size, compare_to=compare_to[i])
+        for i in range(3)
+    ]
 
-    trainers_modules = [create_trainer_pl_module(expert_i, experts, log_folder, hparams, data_mgrs, version, mean_tb_logger, debug=debug) for expert_i in range(len(experts))]
+    trainers_modules = [
+        create_trainer_pl_module(
+            expert_i,
+            experts,
+            log_folder,
+            hparams,
+            data_mgrs,
+            version,
+            mean_tb_logger,
+            debug=debug,
+        )
+        for expert_i in range(len(experts))
+    ]
 
     # config: load_pre_trained_weights with path to json weights in order to train with preinialized weights
     if hparams.get("load_pre_trained_weights"):
@@ -269,9 +332,7 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
     else:
         threads = []
         for trainer_module, expert in zip(trainers_modules, experts_str):
-            t = threading.Thread(target=fit,
-                                 name=expert,
-                                 args=[trainer_module, logger])
+            t = threading.Thread(target=fit, name=expert, args=[trainer_module, logger])
             t.start()
             threads.append(t)
 
@@ -283,22 +344,43 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
     # create dataset with predictions
     expert_modules = [i[1] for i in trainers_modules]
 
-
     logger.info("Creating prediction datasets")
-    loss = {"train": {"filtered": {}, "unfiltered": {}}, "val": {"filtered": {}, "unfiltered": {}}, "test": {"filtered": {}, "unfiltered": {}}}
+    loss = {
+        "train": {"filtered": {}, "unfiltered": {}},
+        "val": {"filtered": {}, "unfiltered": {}},
+        "test": {"filtered": {}, "unfiltered": {}},
+    }
 
     expert_weights_json(expert_modules, path=log_folder)
 
-    for filtered, mode in itertools.product([True, False] if hparams.get("filter") else [False], ["train", "val", "test"]):
+    for filtered, mode in itertools.product(
+        [True, False] if hparams.get("filter") else [False], ["train", "val", "test"]
+    ):
         name_extension = "_filtered" if filtered else ""
-        preds = create_dataset_with_predictions_per_expert(expert_modules, mode=mode, filter=None if filtered else IdentityFilter())
-        save_csv_dataset_with_predictions(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
-        save_predictions_pickle(expert_modules, preds, path=log_folder, mode=mode, name_extension=name_extension)
-        # loss_overall, std_overall, loss, std 
-        loss[mode]["filtered" if filtered else "unfiltered"]["loss_overall"], \
-        loss[mode]["filtered" if filtered else "unfiltered"]["std_overall"], \
-        loss[mode]["filtered" if filtered else "unfiltered"]["loss"], \
-        loss[mode]["filtered" if filtered else "unfiltered"]["std"] = get_loss(expert_modules, preds)
+        preds = create_dataset_with_predictions_per_expert(
+            expert_modules, mode=mode, filter=None if filtered else IdentityFilter()
+        )
+        save_csv_dataset_with_predictions(
+            expert_modules,
+            preds,
+            path=log_folder,
+            mode=mode,
+            name_extension=name_extension,
+        )
+        save_predictions_pickle(
+            expert_modules,
+            preds,
+            path=log_folder,
+            mode=mode,
+            name_extension=name_extension,
+        )
+        # loss_overall, std_overall, loss, std
+        (
+            loss[mode]["filtered" if filtered else "unfiltered"]["loss_overall"],
+            loss[mode]["filtered" if filtered else "unfiltered"]["std_overall"],
+            loss[mode]["filtered" if filtered else "unfiltered"]["loss"],
+            loss[mode]["filtered" if filtered else "unfiltered"]["std"],
+        ) = get_loss(expert_modules, preds)
 
     logger.info("Writing summary")
     with open(os.path.join(log_folder, "summary.json"), "r") as f:
@@ -309,19 +391,28 @@ def main(config: str, data: Tuple[List[str], List[str], List[str]], debug: bool 
         json.dump(summary, f, indent=2, sort_keys=True)
 
     return log_folder
-    
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Tool to start the neuro trigger training.')
-    parser.add_argument('mode', type=str,
-                        help='Config mode to use, must be defined in config.py')
+    parser = argparse.ArgumentParser(
+        description="Tool to start the neuro trigger training."
+    )
+    parser.add_argument(
+        "mode", type=str, help="Config mode to use, must be defined in config.py"
+    )
     # if not production then logs will go to /tmp and only one expert will be used
-    parser.add_argument('-p', '--production',
-                        help='If not given code will run in debug mode', action='store_true')
-    parser.add_argument('-s', '--solo_expert',
-                        help='Whether one expert or several experts are used for training. One expert is good for debugging as there is not multi processing',
-                        action='store_true')
+    parser.add_argument(
+        "-p",
+        "--production",
+        help="If not given code will run in debug mode",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-s",
+        "--solo_expert",
+        help="Whether one expert or several experts are used for training. One expert is good for debugging as there is not multi processing",
+        action="store_true",
+    )
     parser.add_argument(
         "-d",
         "--description",
@@ -331,9 +422,9 @@ def parse_args():
     parser.add_argument(
         "-m",
         "--hparams",
-        nargs='+',
+        nargs="+",
         help="Overwrite config parameters, e.g. -p expert_2.bach_size=16 act=softsign",
-        default=[]
+        default=[],
     )
     args = parser.parse_args()
     args.hparams = {i.split("=")[0]: eval(i.split("=")[1]) for i in args.hparams}
@@ -345,4 +436,11 @@ if __name__ == "__main__":
     debug = not args.production
     if debug:
         logging.info("Running in debug mode.")
-    main(config=args.mode, data=DATA_DEBUG if debug else DATA_PROD, debug=debug, solo_expert=args.solo_expert, run_description=args.description, overwrite_hparams=args.m__hparams)
+    main(
+        config=args.mode,
+        data=DATA_DEBUG if debug else DATA_PROD,
+        debug=debug,
+        solo_expert=args.solo_expert,
+        run_description=args.description,
+        overwrite_hparams=args.m__hparams,
+    )

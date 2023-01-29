@@ -8,7 +8,10 @@ import json
 
 def create_json_for_conf(conf, version=0):
     experts = [f"expert_{i}" for i in range(5)]
-    exptert_paths = [os.path.join("log", conf, f"version_{version}", expert, "ckpts") for expert in experts]
+    exptert_paths = [
+        os.path.join("log", conf, f"version_{version}", expert, "ckpts")
+        for expert in experts
+    ]
 
     fn = []
     for expert in exptert_paths:
@@ -19,7 +22,6 @@ def create_json_for_conf(conf, version=0):
 
         # new_model = pl_module.NeuroTrigger.load_from_checkpoint(checkpoint_path=exptert_paths[0])
         checkpoint = torch.load(os.path.join(path, fn))
-
 
         # model = model.BaselineModel()
         # model.load_state_dict(checkpoint["state_dict"])
@@ -40,8 +42,6 @@ def create_json_for_conf(conf, version=0):
 
 conf = "baseline_v2"
 create_json_for_conf(conf, version=3)
-
-
 
 
 # %%

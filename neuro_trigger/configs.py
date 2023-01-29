@@ -4,29 +4,24 @@ import copy
 from flatten_dict import flatten, unflatten
 
 configs = {
-
-
     "filter_combine_max2_dupl_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with max 2 events and duplicative events filter combinded",
         "filter": "dataset_filters.ConCatFilter([dataset_filters.Max2EventsFilter(), dataset_filters.DuplicateEventsFilter()])",
     },
-
     "filter_max2_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with max 2 events filter",
         "filter": "dataset_filters.Max2EventsFilter()",
     },
-
     "filter_dupl_events": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
         "description": "Baseline_v2 (tanh/2) with duplicative events filter",
         "filter": "dataset_filters.DuplicateEventsFilter()",
     },
-
     "reweight_uniform": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
@@ -35,12 +30,11 @@ configs = {
         "dist": {
             "n_buckets": 11,
             "uniform": {
-                    "lower": -1,
-                    "upper": 1,
-                },
+                "lower": -1,
+                "upper": 1,
             },
+        },
     },
-
     "reweight_normal_11_04_inf_bounds": {
         "extends": "baseline_v2",
         "compare_to": "baseline_v2/version_4",
@@ -50,12 +44,11 @@ configs = {
             "n_buckets": 11,
             "inf_bounds": True,
             "norm": {
-                    "mean": 0,
-                    "std": 0.4,
-                },
+                "mean": 0,
+                "std": 0.4,
             },
+        },
     },
-
     "reweight_normal_11_04_no_inf_bounds": {
         "extends": "baseline_v2",
         # "compare_to": "baseline_v2/version_4",
@@ -65,13 +58,11 @@ configs = {
             "n_buckets": 11,
             "inf_bounds": False,
             "norm": {
-                    "mean": 0,
-                    "std": 0.4,
-                },
+                "mean": 0,
+                "std": 0.4,
             },
+        },
     },
-
-
     "baseline_v4_softsign": {
         # improving: no, worse than tanh
         "extends": "baseline_v3",
@@ -82,7 +73,7 @@ configs = {
     },
     # idea: add more data, maybe train on random split 1 and 2 and eval on 3
     "baseline_v4_tanh_per_expert": {
-        # improving: 
+        # improving:
         "extends": "baseline_v4_tanh",
         # should be similar to "baseline_v2/version_4"
         "compare_to": "baseline_v4_tanh/version_0",
@@ -254,7 +245,6 @@ configs = {
         "description": "Baseline arch with tanh/2",
         "act": "tanh/2",
     },
-
     "simple_model_v1": {
         "extends": "baseline_v1",
         "act": "relu",
@@ -266,7 +256,6 @@ configs = {
         "out_size": 1,
         "description": "like baseline_v1 but only trains on the z target",
     },
-
     "baseline_v1": {
         "extends": "base",
         "learning_rate": 1e-3,
@@ -319,9 +308,7 @@ configs = {
         # },
         # path for pre trained weights that one wants to start with:
         "load_pre_trained_weights": None,
-    }
-
-
+    },
 }
 
 
@@ -344,7 +331,9 @@ def extend(use_dict: Dict, flattened_configs: Dict) -> Dict:
         return copy.deepcopy(use_dict)
 
 
-def get_hyperpar_by_name(name: str, overwrite_hparams: Optional[Dict[str, Any]] = None) -> EasyDict:
+def get_hyperpar_by_name(
+    name: str, overwrite_hparams: Optional[Dict[str, Any]] = None
+) -> EasyDict:
     """Get hyperparameter config by name.
 
     Gets the config with the given name, extends it with its parent config
@@ -368,4 +357,3 @@ def get_hyperpar_by_name(name: str, overwrite_hparams: Optional[Dict[str, Any]] 
     extened_hparams = extend(hparams, flattened_configs)
     extened_hparams.update(overwrite_hparams)
     return EasyDict(unflatten(extened_hparams, splitter="dot"))
-
